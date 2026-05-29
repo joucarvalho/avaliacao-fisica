@@ -146,8 +146,10 @@ function MetricCard({ label, value, unit, values, invert, accent = "teal" }: {
   return (
     <div className={`rounded-xl p-4 border overflow-hidden ${border[accent] || border.teal} ${bg[accent] || bg.teal}`}>
       <p className="text-[10px] font-mono uppercase tracking-wider text-foreground/40 mb-1.5">{label}</p>
-      <span className="font-mono text-2xl font-bold text-foreground/85 leading-none block">{value || "—"}</span>
-      {value && <span className="text-[11px] font-mono text-foreground/35 mt-0.5 block">{unit}</span>}
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-mono text-2xl font-bold text-foreground/85 leading-none">{value || "—"}</span>
+        {value && <span className="text-[11px] font-mono text-foreground/35">{unit}</span>}
+      </div>
       {showTrend && (
         <div className="mt-2">
           <TrendBadge values={values!} invert={invert} />
@@ -218,15 +220,15 @@ export default function Relatorio() {
   const rcq = formData.rcq as string || "";
 
   // ── Bioimpedância ────────────────────────────────
-  const bioRows = ["Peso Total (kg)", "Água Corporal (kg)", "Massa Proteica (kg)", "Minerais (kg)", "Massa Gorda (kg)", "Massa Muscular Esquelética (kg)", "Percentual de Gordura (%)", "Taxa Metabólica Basal (kcal)", "Gordura Visceral (nível)", "Idade Metabólica"];
+  const bioRows = ["Peso Total (kg)", "Água Corporal (kg)", "Massa Proteica (kg)", "Minerais (kg)", "Massa M. Esquelética (kg)", "Massa Gorda (kg)", "Gordura Visceral (nível)", "Percentual de Gordura (%)", "%GC Sub-cutânea (%)", "Taxa Metabólica Basal (kcal)", "Idade Metabólica"];
   const bioChartData = useMemo(() => buildChart(formData, "bioimpedancia", bioRows, 6), [formData]);
 
   const pesoVals = getValues(formData, "bioimpedancia", 0, 6);
-  const gorduraVals = getValues(formData, "bioimpedancia", 6, 6);
-  const musculoVals = getValues(formData, "bioimpedancia", 5, 6);
-  const massaGordaVals = getValues(formData, "bioimpedancia", 4, 6);
-  const tmbVals = getValues(formData, "bioimpedancia", 7, 6);
-  const visceralVals = getValues(formData, "bioimpedancia", 8, 6);
+  const musculoVals = getValues(formData, "bioimpedancia", 4, 6);
+  const massaGordaVals = getValues(formData, "bioimpedancia", 5, 6);
+  const visceralVals = getValues(formData, "bioimpedancia", 6, 6);
+  const gorduraVals = getValues(formData, "bioimpedancia", 7, 6);
+  const tmbVals = getValues(formData, "bioimpedancia", 9, 6);
 
   // ── Dobras Cutâneas ──────────────────────────────
   const protocoloDC = formData.dc_protocolo as string || "";
@@ -394,12 +396,12 @@ export default function Relatorio() {
                 <Activity size={13} /> Resumo da Avaliação
               </h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 print:grid-cols-6 gap-3 print:gap-2">
-                <MetricCard label="Peso" value={lastValid(pesoVals)?.toFixed(1) || peso} unit="kg" values={pesoVals} accent="teal" />
-                <MetricCard label="IMC" value={imc} unit={imcClass} accent="teal" />
-                <MetricCard label="% Gordura" value={lastValid(gorduraVals)?.toFixed(1) || lastValid(dcGorduraVals)?.toFixed(1) || ""} unit="%" values={gorduraVals.some((v) => v !== null) ? gorduraVals : dcGorduraVals} invert accent="orange" />
+                <MetricCard label="Peso Total" value={lastValid(pesoVals)?.toFixed(1) || peso} unit="kg" values={pesoVals} accent="teal" />
                 <MetricCard label="Massa Muscular" value={lastValid(musculoVals)?.toFixed(1) || ""} unit="kg" values={musculoVals} accent="green" />
+                <MetricCard label="Massa Gorda" value={lastValid(massaGordaVals)?.toFixed(1) || ""} unit="kg" values={massaGordaVals} invert accent="orange" />
+                <MetricCard label="% Gordura Corporal" value={lastValid(gorduraVals)?.toFixed(1) || lastValid(dcGorduraVals)?.toFixed(1) || ""} unit="%" values={gorduraVals.some((v) => v !== null) ? gorduraVals : dcGorduraVals} invert accent="orange" />
                 <MetricCard label="VO₂ Máx" value={vo2Resultado || lastValid(cardioVO2Vals)?.toFixed(1) || ""} unit="ml/kg/min" values={cardioVO2Vals} accent="orange" />
-                <MetricCard label="Taxa Metabólica" value={lastValid(tmbVals)?.toFixed(0) || ""} unit="kcal" values={tmbVals} accent="teal" />
+                <MetricCard label="Taxa Metabólica Basal" value={lastValid(tmbVals)?.toFixed(0) || ""} unit="kcal" values={tmbVals} accent="teal" />
               </div>
             </div>
 
