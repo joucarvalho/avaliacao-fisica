@@ -6,7 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Link } from "wouter";
+import { useLocation } from "wouter";
 import {
   User, Heart, Ruler, Activity, Move, Dumbbell, FileText,
   ChevronDown, ChevronUp, ClipboardList, Scale, Droplets,
@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { ImageUpload } from "@/components/ImageUpload";
 import { getPesoAtual } from "@shared/const";
 import { salvarRascunho, carregarRascunho, limparRascunho } from "@/lib/storage";
+import { preloadRelatorio } from "@/lib/lazy-relatorio";
 
 const HERO_BANNER = "https://d2xsxph8kpxj0f.cloudfront.net/310519663189802522/jR49oumLd7zjbJQV8Hob98/hero-banner-PrMVEyJGXJ9hx569zktZtv.webp";
 const BODY_BG = "https://d2xsxph8kpxj0f.cloudfront.net/310519663189802522/jR49oumLd7zjbJQV8Hob98/body-composition-bg-RC8TzfA8Dk7pAjBJJNjB2a.webp";
@@ -541,6 +542,7 @@ export default function Home() {
     return { header_treinador: "Julio Carvalho" };
   });
   const inputImportRef = useRef<HTMLInputElement>(null);
+  const [, navigate] = useLocation();
 
   // Salva o rascunho a cada mudança do formData. Throttle leve via setTimeout
   // para não escrever no localStorage a cada caractere digitado.
@@ -550,6 +552,18 @@ export default function Home() {
     }, 500);
     return () => clearTimeout(timer);
   }, [formData]);
+
+  // Pré-carrega o Relatório quando o navegador fica ocioso, pra transição pra
+  // /relatorio já achar o chunk pronto. É a rede de segurança do mobile, que
+  // não dispara o preload do hover/foco do botão.
+  useEffect(() => {
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(() => preloadRelatorio(), { timeout: 200 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = setTimeout(() => preloadRelatorio(), 200);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Recalcula idade sempre que nascimento mudar (inclusive no carregamento inicial)
   useEffect(() => {
@@ -687,6 +701,23 @@ export default function Home() {
     });
   }, []);
 
+  // Abre o Relatório só depois de garantir que o pacote de gráficos já carregou,
+  // pra animação de transição rodar sobre o conteúdo real (e não sobre o
+  // "Carregando..."). O teto de 400ms evita travar o clique em conexão lenta.
+  const abrirRelatorio = async (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey) return; // deixa abrir em nova aba
+    e.preventDefault();
+    try {
+      await Promise.race([
+        preloadRelatorio(),
+        new Promise<void>((resolve) => setTimeout(resolve, 400)),
+      ]);
+    } catch {
+      /* se o download falhar, navega mesmo assim — o ErrorBoundary cobre */
+    }
+    navigate("/relatorio");
+  };
+
   // Handlers do fluxo Export / Import / Nova Ficha
   const handleNovaFicha = () => {
     setFormData({ header_treinador: "Julio Carvalho" });
@@ -790,9 +821,9 @@ export default function Home() {
             <span>Rascunho local · <span className="text-orange/80">Não esqueça de exportar o PDF</span></span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Link href="/relatorio" className="flex items-center gap-1.5 text-xs font-display font-semibold text-green hover:text-green/80 px-3 py-1.5 rounded-md hover:bg-green/5 transition-colors">
+            <a href="/relatorio" onClick={abrirRelatorio} onMouseEnter={() => preloadRelatorio()} onFocus={() => preloadRelatorio()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-green hover:text-green/80 px-3 py-1.5 rounded-md hover:bg-green/5 transition-colors">
               <BarChart3 size={13} /> Relatório
-            </Link>
+            </a>
             <div className="w-px h-4 bg-border mx-1" />
             <button onClick={handleNovaFicha} className="flex items-center gap-1.5 text-xs font-display font-semibold text-foreground/60 hover:text-primary px-3 py-1.5 rounded-md hover:bg-primary/5 transition-colors">
               <FilePlus size={13} /> Nova Ficha
