@@ -114,3 +114,7 @@ backups/
 # Manus (ferramenta de automação — arquivos gerados automaticamente)
 client/public/__manus__/
 .manus-logs/
+
+# Notas de processo (locais — não vão para o repo público)
+git.txt
+to-do.md
