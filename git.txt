@@ -1,0 +1,2583 @@
+============================================================
+  GIT.TXT — GUIA COMPLETO DE GIT
+  Projeto: avaliacao_fisica
+  Atualizado automaticamente pelo Claude ao fim de cada sessão
+============================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AO — Enxuga o CLAUDE.md (remove redundâncias com o global)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-29. Branch ativa: main.
+
+O CLAUDE.md do projeto (233 linhas) duplicava regras que já vivem no
+global ~/.claude/CLAUDE.md. Como o repo é de uso pessoal (só o dono
+acessa), removemos as duplicatas e deixamos um ponteiro pro global.
+
+REMOVIDO (idêntico ao global):
+  - Regras 1-3 (Idioma, Fluxo de 4 fases, Perfil do usuário)
+  - Seção "Fluxo de Trabalho Detalhado" inteira
+  - Seção "Como Claude Deve Se Comunicar" inteira (com o exemplo useCallback)
+  - Seção "GitHub" (a parte do git.txt já está no global)
+
+MANTIDO / ATUALIZADO (específico do projeto):
+  - Comandos do Projeto (removido o pnpm format da lista)
+  - Arquitetura inteira
+  - Hospedagem atualizada: produção na Vercel
+    (https://avaliacao-fisica-smoky.vercel.app; push na main = redeploy automático)
+  - Nova seção "Convenções específicas": branches, deploy e formatação
+    (registra que o projeto NÃO usa Prettier na prática)
+  - Ponteiro no topo apontando as regras gerais para o global
+
+Resultado: CLAUDE.md de 233 → 112 linhas.
+
+Arquivos alterados:
+  - CLAUDE.md  → enxugado e atualizado
+  - git.txt    → este arquivo
+
+Comandos para commitar:
+  git add CLAUDE.md git.txt
+  git commit -m "docs(claude): enxuga CLAUDE.md — remove redundâncias com o global e atualiza hospedagem/Vercel"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AN — Correção de crash no Teste de Rockport
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-29. Branch ativa: ficha.
+
+PROBLEMA: ao selecionar "Teste de Rockport" no dropdown de VO₂ máx,
+a página quebrava com "An unexpected error occurred". O stack trace
+apontava para mmssParaMinutos() chamada de calculateVO2MaxRockport().
+
+CAUSA RAIZ: a função mmssParaMinutos(valor: string) chamava
+valor.includes(":") imediatamente. Quando o campo `rockport_tempo`
+ainda está vazio (valor === undefined), chamar .includes() em
+undefined lança um TypeError — JavaScript não consegue chamar
+métodos em undefined.
+
+CORREÇÃO: adicionada uma guarda de uma linha no topo da função:
+  if (!valor) return 0;
+Com isso, quando o campo está vazio, a função devolve 0. A função
+calculateVO2MaxRockport já tem a verificação `t <= 0` que retorna
+"" sem crash. Nenhuma lógica existente foi alterada.
+
+Arquivo alterado:
+  - client/src/pages/Home.tsx  → linha 442: guard `if (!valor) return 0;`
+  - git.txt                    → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx git.txt
+  git commit -m "fix(ficha): corrige crash ao selecionar Teste de Rockport"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AM — Deploy na Vercel (vercel.json)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+OBJETIVO: publicar a SPA estática numa URL pública (Vercel), sem
+depender do localhost. Mantém o modelo atual — dados no navegador
+(localStorage) + PDF; sem backend, sem banco, sem variáveis de ambiente.
+
+Criado vercel.json na raiz com:
+  - buildCommand: "pnpm build"
+  - outputDirectory: "dist/public"  (saída não-padrão deste Vite)
+  - rewrites: todas as rotas → /index.html  (SPA: /relatorio não dá
+    404 ao recarregar; arquivos estáticos existentes têm prioridade)
+
+PASSOS NA VERCEL (feitos pelo usuário — exigem conta):
+  1. vercel.com → login com GitHub
+  2. Add New Project → importar joucarvalho/avaliacao_fisica
+  3. A Vercel lê o vercel.json → clicar Deploy
+  4. URL pública gerada; cada push futuro = redeploy automático
+
+Arquivos alterados:
+  - vercel.json  → NOVO (config de deploy)
+  - to-do.md     → tarefas desta etapa
+  - git.txt      → este arquivo
+
+Comandos para commitar:
+  git add vercel.json to-do.md git.txt
+  git commit -m "chore(deploy): adiciona vercel.json para publicar a SPA na Vercel"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AL — Migra para html2canvas-pro (corrige texto deslocado)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+PROBLEMA: após a migração html-to-image → html2canvas (Parte 1Z, ainda
+não commitada), o texto do PDF saía deslocado para baixo (números das
+seções, títulos, labels, valores). Causa: o html2canvas oficial (1.4.1,
+sem manutenção desde 2022) tem um bug histórico no cálculo da posição
+vertical do texto — issue #2775 "Texts are shifted down".
+
+Voltar ao html-to-image não era opção: ele usa SVG <foreignObject>, que o
+Safari marca como "origin-dirty" e bloqueia em canvas.toDataURL() — foi o
+motivo original da Parte 1Z. (Confirmado por documentação: o bloqueio é do
+foreignObject em si, não de recursos cross-origin.)
+
+SOLUÇÃO: trocar html2canvas pelo fork mantido html2canvas-pro (v2.0.4), de
+API idêntica, que funciona no Safari (sem foreignObject), corrige o
+posicionamento de texto e entende oklch()/oklab() nativamente.
+
+Mudanças:
+  1. package.json: + html2canvas-pro; − html2canvas; − html-to-image
+     (esta última já era ÓRFÃ — instalada mas nunca importada no código).
+  2. vite.config.ts: o manualChunks "pdf" referenciava html-to-image; agora
+     aponta para html2canvas-pro. (Só não quebrava o build antes porque a
+     lib órfã continuava instalada.)
+  3. client/src/lib/pdf.ts: import trocado; REMOVIDAS ~200 linhas de
+     conversão manual oklch→rgb (oklchParaRgb, oklabParaRgb, converterOklch,
+     converterOklab, patcharCloneOklch, o onclone e o laço de cores inline) —
+     o pro faz isso nativamente. Arquivo: 559 → 358 linhas.
+     MANTIDO o div-swap de inputs: testamos remover, mas o pro corrige o
+     texto de elementos normais (títulos/labels/spans) e NÃO o de <input>
+     (que vai para a baseline). Comentário do div-swap atualizado.
+  4. Comentários/docs atualizados: cabeçalho do pdf.ts, comentário do
+     dynamic import em Home.tsx e a seção de arquitetura do CLAUDE.md.
+
+Validado no Safari pelo usuário: textos 100% centralizados, cores corretas,
+imagens com proporção normal, export mais rápido, sem travar.
+
+pnpm check ✅ — zero erros de TypeScript. pnpm build ✅.
+
+Arquivos alterados:
+  - package.json              → +html2canvas-pro, −html2canvas, −html-to-image
+  - pnpm-lock.yaml            → atualizado pelo pnpm
+  - vite.config.ts            → manualChunks aponta para html2canvas-pro
+  - client/src/lib/pdf.ts     → import + remoção da maquinaria oklch (−201 linhas)
+  - client/src/pages/Home.tsx → comentário do dynamic import
+  - CLAUDE.md                 → seção de arquitetura atualizada
+  - to-do.md                  → tarefas desta sessão
+  - git.txt                   → este arquivo
+
+Comandos para commitar:
+  git add package.json pnpm-lock.yaml vite.config.ts \
+          client/src/lib/pdf.ts client/src/pages/Home.tsx \
+          CLAUDE.md to-do.md git.txt
+  git commit -m "fix(pdf): migra para html2canvas-pro — corrige texto deslocado e remove conversão oklch manual"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AK — Centraliza texto do div-swap via line-height
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+O div-swap (Parte 1AJ) eliminou o corte do texto mas o centramento
+via `display:flex + align-items:center` não funcionou no html2canvas
+— o motor não respeita flexbox para posicionar texto de texto simples.
+
+Fix: trocar flexbox por `lineHeight = height` no div temporário.
+Quando line-height == height de um div, o texto fica centrado
+verticalmente — técnica clássica de CSS que o html2canvas respeita
+para divs (ao contrário de inputs, onde era ignorada).
+
+div.style.lineHeight = div.style.height (ex: "24px" ou "36px")
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → substitui flex centering por lineHeight
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts git.txt
+  git commit -m "fix(pdf): centraliza texto do div-swap com lineHeight ao invés de flexbox"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AJ — Fix definitivo: div-swap de inputs durante captura
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Abordagem anterior (lineHeight = height) confirmada ineficaz:
+o html2canvas ignora line-height ao posicionar texto em <input>
+— comportamento interno do motor, não configurável via CSS.
+
+Solução: div-swap em capturarElemento() (pdf.ts).
+
+Antes de chamar html2canvas, iteramos todos os <input type="text">
+do elemento a capturar. Para cada um:
+  1. Criamos um <div> com as mesmas classes CSS do input
+  2. Copiamos os inline styles que já aplicamos (height, minHeight, etc.)
+  3. Definimos display:flex + align-items:center no div
+  4. Preenchemos div.textContent com input.value
+  5. Substituímos o input pelo div no DOM (replaceChild)
+  6. Armazenamos { div, input, parent } em inputRestores[]
+
+No finally (antes de restaurar bgRestores):
+  parent.replaceChild(input, div) → inputs voltam ao DOM
+  O usuário nunca vê a troca — ocorre em milissegundos durante o export.
+
+O html2canvas captura os divs (que renderizam texto corretamente via
+flexbox) em vez dos inputs. O resultado é texto verticalmente centrado
+em todos os campos — tanto nos h-6 do hero quanto nos h-9 das seções.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → remove lineHeight fix; adiciona div-swap
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): div-swap de inputs — corrige texto na base dos campos no PDF"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AI — Remove botão Imprimir; corrige texto de input no hero
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+  1. Botão Imprimir removido do Home.tsx:
+     O botão usava window.print() e não pode embutir o JSON da ficha
+     no PDF — o browser gera o PDF diretamente via SO, sem acesso
+     programático. Sem utilidade comparado ao Exportar PDF.
+     Import do ícone `Printer` do lucide-react também removido.
+
+  2. Texto de input centrado verticalmente no html2canvas (pdf.ts):
+     Os 4 cards do hero ("Nome do Aluno", "Data", etc.) usam
+     <input type="text" className="h-6 ..."> sem line-height explícito.
+     O html2canvas posiciona o texto usando métricas da fonte sem
+     saber como centralizar em inputs — texto aparecia no fundo do campo.
+     Fix: em capturarElemento(), para cada <input> que não seja
+     checkbox/radio, inline lineHeight = height (ex: "24px") antes da
+     captura. html2canvas trata o input como caixa de linha única com
+     baseline exatamente centrado. Restaurado no finally via bgRestores.
+     O problema NÃO ocorria globalmente (só nos inputs); a correção é
+     cirúrgica para não repetir o desalinhamento global que a Parte 1AG
+     havia corrigido ao remover lineHeight do LAYOUT_INLINE.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/pages/Home.tsx  → remove botão Imprimir + import Printer
+  - client/src/lib/pdf.ts      → lineHeight inline para <input> em capturarElemento
+  - to-do.md                   → tarefas marcadas concluídas
+  - git.txt                    → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): corrige texto de input no hero; remove botão Imprimir"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AH — Corrige fontes ausentes no clone do html2canvas
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Causa raiz identificada: textos desalinhados e espaçamentos
+estranhos em todo o PDF exportado.
+
+O html2canvas clona o documento antes de capturar. A função
+patcharCloneOklch() percorria TODOS os <link rel="stylesheet">
+e os removia, substituindo por <style> com CSS patchado.
+
+O único stylesheet cross-origin é o Google Fonts (fonts.googleapis.com).
+Por ser cross-origin, o CORS bloqueia a leitura das cssRules, então
+ele ficava fora do Map cssOriginal. Resultado: o <link> do Google Fonts
+era deletado do clone e substituído por um <style> VAZIO.
+
+O html2canvas renderizava o clone sem DM Sans, IBM Plex Mono nem
+Source Sans 3 — caía nos fontes do sistema operacional. Fontes
+diferentes têm métricas diferentes (altura-x, ascendentes, entrelinhas),
+o que causava:
+  - textos deslocados para baixo nos inputs
+  - espaçamento entre letras inconsistente
+  - caracteres Unicode (₂) não suportados pela fonte do sistema
+
+Duas correções em client/src/lib/pdf.ts:
+
+  1. patcharCloneOklch():
+     O loop que substitui <link> por <style> agora verifica se o href
+     está em cssOriginal. Se não estiver (= cross-origin), faz `continue`
+     e mantém o <link> original no clone. O Google Fonts link fica
+     preservado — o html2canvas pode usar as fontes (já em cache do
+     browser após o carregamento da página).
+
+  2. capturarElemento():
+     Adicionado `await document.fonts.ready` antes de chamar html2canvas.
+     Garante que as três fontes estejam completamente carregadas e no
+     cache do browser antes de qualquer captura. Na prática, resolve na
+     primeira chamada e retorna instantaneamente nas demais (Promise settled).
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → patcharCloneOklch + capturarElemento
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): corrige fontes ausentes no clone do html2canvas — preserva <link> do Google Fonts"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AG — getBoundingClientRect como minHeight + corrige lineHeight global
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Dois bugs simultâneos identificados e corrigidos:
+
+  1. lineHeight no LAYOUT_PROPS do hero (Parte 1AF) causava desalinhamento
+     de texto em todo o documento: getComputedStyle().lineHeight devolve
+     valor em px que o html2canvas usava de forma diferente do browser,
+     empurrando textos levemente para baixo nos inputs de todas as seções.
+     Fix: remover completamente o bloco LAYOUT_PROPS/layoutRestores do
+     bloco hero em exportarPDF. O hero mantém apenas overflow:visible,
+     paddingBottom:40px e a remoção de backdropFilter (que agora é feita
+     dentro de capturarElemento).
+
+  2. Corte dos cards do hero e desalinhamento global: movido para
+     capturarElemento() o tratamento completo, que agora se aplica a
+     TODAS as capturas (hero + seções):
+
+     a. Inline de layout props via getComputedStyle (resolve var(--spacing)
+        do Tailwind v4 para px antes do html2canvas ver os valores):
+        paddingTop, paddingBottom, paddingLeft, paddingRight, rowGap,
+        columnGap, height. Salvo em bgRestores, restaurado no finally.
+
+     b. getBoundingClientRect().height → minHeight: lê a altura REAL
+        renderizada pelo browser (não a CSS calculada) e a seta como
+        minHeight inline. html2canvas nunca renderiza o elemento menor
+        que seu tamanho real. Esta é a linha de defesa definitiva contra
+        o corte dos cards.
+
+     c. Remoção de backdropFilter/webkitBackdropFilter movida para cá
+        (saiu do bloco hero do exportarPDF), aplicando agora a todas as
+        capturas.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → capturarElemento + hero block simplificado
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): getBoundingClientRect como minHeight — corrige corte de cards e desalinhamento global"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AF — Inline de CSS vars do hero para o html2canvas
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Causa raiz identificada: Tailwind v4 usa var(--spacing) em TODAS as
+utilities de espaçamento (py-3, px-4, h-6, mt-8, gap-3 etc.). O
+html2canvas tem seu próprio parser CSS em JavaScript que NÃO resolve
+var() — então padding, height e gap ficam em 0 internamente. O
+background dos cards é desenhado com altura calculada errada, cortando
+o conteúdo antes do padding inferior.
+
+Fix em client/src/lib/pdf.ts, bloco do hero em exportarPDF:
+
+  Antes de capturarElemento(hero), percorre hero + todos os filhos via
+  [hero, ...hero.querySelectorAll('*')]. Para cada elemento:
+
+  1. Itera LAYOUT_PROPS: height, minHeight, paddingTop/Bottom/Left/Right,
+     marginTop/Bottom/Left/Right, rowGap, columnGap, borderRadius,
+     letterSpacing, lineHeight.
+  2. Lê o valor COMPUTADO via window.getComputedStyle(el)[prop] —
+     o browser já resolveu var(--spacing) para valores em px.
+  3. Se difere do inline style atual, salva o original em layoutRestores
+     e escreve o valor computado como inline style.
+  4. Também zera backdropFilter/webkitBackdropFilter via o mesmo array.
+
+  No finally: restaura todos os inline styles de layoutRestores.
+
+  O html2canvas lê inline styles com prioridade máxima (especificidade
+  acima das classes CSS). Com os valores em px explicitamente definidos,
+  o modelo interno do html2canvas tem as dimensões corretas.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → loop LAYOUT_PROPS + layoutRestores unificado
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): inline CSS vars do hero para corrigir var(--spacing) no html2canvas"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AE — Corrige corte dos cards do hero no PDF (v2)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Problema persistente: cards do hero (Nome, Data, Nº, Treinador) com o
+fundo e valores cortados na parte inferior do PDF mesmo após a Parte 1AD.
+
+Diagnóstico:
+  - minHeight = scrollHeight foi no-op: scrollHeight === offsetHeight,
+    então nenhuma expansão ocorreu. O hero não estava em overflow.
+  - backdrop-filter: blur nos cards (backdrop-blur-sm do Tailwind):
+    html2canvas não suporta backdrop-filter e pode truncar a altura
+    de elementos que usam essa propriedade.
+
+Duas correções em client/src/lib/pdf.ts, bloco de captura do hero:
+
+  1. paddingBottom: '40px' no lugar de minHeight:
+     paddingBottom SEMPRE aumenta o offsetHeight do elemento em 40px,
+     independente de scrollHeight. O html2canvas captura 40px a mais
+     na base do hero, garantindo que os cards e seu padding inferior
+     estejam dentro do canvas. O PDF mostra os cards completos + 40px
+     de fundo teal abaixo deles.
+
+  2. Remove backdrop-filter de todos os filhos do hero antes de capturar:
+     Percorre hero.querySelectorAll('*'), detecta via getComputedStyle
+     quem tem backdropFilter !== 'none', zera backdropFilter e
+     webkitBackdropFilter como inline style. Restaura no finally.
+     Sem backdrop-filter, html2canvas renderiza os elementos com
+     suas dimensões corretas sem truncamentos relacionados ao filtro.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → paddingBottom + remoção de backdropFilter
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): corrige corte dos cards do hero — paddingBottom e remove backdropFilter"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AD — Corrige corte do texto no hero do PDF
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Problema: os cards de info (Nome do Aluno, Data, Nº da Ficha, Treinador)
+apareciam cortados na parte inferior no PDF exportado.
+
+Causa: o <header class="pdf-hero overflow-hidden"> tem overflow:hidden.
+O html2canvas respeita esse clip — se o scrollHeight do hero for maior
+que o offsetHeight, o conteúdo além do limite é ignorado na captura.
+
+Fix em client/src/lib/pdf.ts, dentro de exportarPDF():
+  Antes de chamar capturarElemento(hero):
+    - Salva hero.style.overflow e hero.style.minHeight
+    - Define overflow: visible (remove o clip de CSS)
+    - Define minHeight: hero.scrollHeight + "px" (expande o elemento
+      para seu conteúdo real, garantindo que offsetHeight == scrollHeight)
+  No bloco finally (após captura, em qualquer caso — sucesso ou erro):
+    - Restaura overflow e minHeight originais
+
+O browser nunca vê a mudança (ocorre durante a geração do PDF,
+dentro do mesmo frame de JS). Visual do app não é afetado.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → bloco hero com overflow/minHeight antes do try
+  - to-do.md               → tarefa marcada concluída
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): corrige corte do texto no hero — remove overflow:hidden antes da captura"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AC — Fallback do Hero + Patch oklab expandido para todas as propriedades de cor
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Problema: o export do PDF falhava com "oklab: unsupported color function"
+mesmo após patches anteriores. Não havia fallback — se qualquer passo
+da captura lançasse exceção, o PDF inteiro falhava.
+
+Duas correções em client/src/lib/pdf.ts:
+
+  1. Patch de oklab expandido em capturarElemento():
+     A pré-varredura antes do html2canvas cobria apenas backgroundImage.
+     Mas html2canvas lê getComputedStyle() de TODAS as propriedades de cor
+     internamente. Expandido para cobrir 9 propriedades:
+       backgroundImage, backgroundColor, color, borderColor,
+       borderTopColor, borderRightColor, borderBottomColor,
+       borderLeftColor, outlineColor.
+     Para cada propriedade com oklab()/oklch(): converte para rgb() e
+     aplica como inline style temporário. O tipo de bgRestores foi
+     atualizado para { el, prop, original } para restaurar a propriedade
+     correta no finally (antes restaurava sempre backgroundImage).
+
+  2. Fallback do Hero:
+     A captura do .pdf-hero foi envolvida em try/catch. Se falhar:
+     o jsPDF desenha um retângulo sólido de 40mm na cor teal (#0A6B7C)
+     no lugar da imagem, e o PDF continua normalmente com todas as seções.
+     Antes: qualquer erro na captura do hero travava todo o export.
+     Agora: PDF garante pelo menos as seções, com capa de cor sólida como
+     fallback visual.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → propsParaVerificar + tipo bgRestores + try/catch hero
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): expande patch de oklab para todas as props de cor e adiciona fallback do hero"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AB — Fix definitivo oklab: interpolação + computed styles
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Causa raiz definitiva do oklab: mesmo após patchar os stylesheets
+para converter oklch() → rgb(), o browser continuava devolvendo
+oklab() nos valores COMPUTADOS dos gradientes. Isso acontece porque
+o Tailwind v4 usa "in oklab" como método de interpolação em gradientes:
+
+  linear-gradient(in oklab, rgb(x,y,z), rgb(a,b,c))
+
+O browser, ao computar esse gradiente, normaliza as paradas rgb()
+para o espaço de interpolação oklab, devolvendo:
+
+  linear-gradient(in oklab, oklab(L,a,b), oklab(L,a,b))
+
+O html2canvas lê esse valor via getComputedStyle e trava com
+"unsupported color function 'oklab'".
+
+Duas correções simultâneas em client/src/lib/pdf.ts:
+
+  1. patchCss() — nova terceira substituição:
+     Remove métodos de interpolação de cor dos gradientes no CSS
+     dos stylesheets clonados:
+       "in oklab", "in oklch", "in display-p3", etc. → removidos
+     Sem o "in oklab", o browser usa sRGB por padrão e NÃO
+     normaliza as paradas para oklab no computed value.
+
+  2. capturarElemento() — inline style override:
+     Antes de chamar html2canvas, percorre todos os elementos da
+     seção no documento ORIGINAL e lê window.getComputedStyle(el)
+     .backgroundImage. Se contiver oklab() ou oklch(), aplica o
+     valor convertido (rgb puro, sem interpolation hints) como
+     style inline. O clone herda o inline style que tem precedência
+     sobre o computed style do iframe. Restaurado no finally.
+
+Resultado: dupla barreira — o clone tem stylesheets sem oklab/oklch
+E os elementos têm inline styles com rgb puro. html2canvas não
+encontra oklab em nenhum caminho de leitura.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → patchCss + capturarElemento
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): corrige oklab em computed styles — remove interpolação e aplica inline override"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1AA — Suporte a oklab() no export PDF
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Causa do erro: o html2canvas lançava "unsupported color function 'oklab'"
+ao tentar parsear o CSS do Tailwind v4. A função patcharCloneOklch já
+substituía oklch() por rgb() antes da captura, mas esquecia o oklab() —
+que o Tailwind usa em alguns gradients.
+
+Mudanças em client/src/lib/pdf.ts:
+
+  1. oklabParaRgb(l, a, b, alpha):
+     Converte OKLab → sRGB usando a mesma matriz matemática do
+     oklchParaRgb. A diferença é que OKLab já vem em coordenadas
+     cartesianas (l, a, b) — pula a etapa de ângulo/chroma para
+     a/b. Mesmo pipeline de gamma-correction no final.
+
+  2. converterOklab(oklabStr):
+     Análogo ao converterOklch: faz regex em "oklab(...)", valida
+     grupos, e chama oklabParaRgb. O regex aceita valores negativos
+     nos canais a e b (ex: oklab(0.5 -0.1 0.08)).
+
+  3. patchCss(css) dentro de patcharCloneOklch:
+     Helper local que centraliza as duas substituições (oklch e oklab).
+     <link> e <style> agora passam por patchCss, que cobre os dois casos.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → oklabParaRgb + converterOklab + patchCss
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): suporte a oklab() no patch de cores do html2canvas"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1Z — Fix definitivo SecurityError Safari (html2canvas)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Causa raiz definitiva do SecurityError: The operation is insecure:
+
+  A biblioteca html-to-image usa SVG <foreignObject> para renderizar HTML
+  no canvas. O Safari (WebKit) marca o canvas como "origin-dirty" ao detectar
+  qualquer canvas que recebeu um SVG com <foreignObject> — independente de
+  crossOrigin, Blob URLs ou recursos externos. Isso está documentado na MDN:
+  "Drawing an SVG image which includes a foreignObject element to a canvas
+  makes the canvas origin-dirty." Chrome/Firefox são mais permissivos nesse
+  ponto; Safari é estrito.
+
+  As tentativas anteriores (Parte 1X e 1Y) eliminaram fetchAsDataURL e
+  crossOrigin='anonymous', mas o erro persistia porque a taint vinha
+  do próprio foreignObject — não de nenhum recurso externo. Confirmado
+  pelo fato de o erro ocorrer mesmo com ficha completamente vazia (sem fotos).
+
+Solução: substituir html-to-image por html2canvas.
+
+  html2canvas renderiza cada elemento CSS manualmente (desenha retângulos,
+  textos, bordas, sombras no canvas um a um), sem usar foreignObject. O
+  Safari não marca o canvas como tainted nessa abordagem — canvas.toDataURL()
+  funciona normalmente.
+
+  Única limitação do html2canvas: não entende oklch() (cores do Tailwind v4).
+  Solução: antes de capturar, lemos todos os estilos computados via
+  window.getComputedStyle() — o próprio browser converte oklch para rgb()
+  internamente — e aplicamos como estilos inline. Restauramos no finally.
+  Resultado: html2canvas vê rgb() em todo lugar e renderiza corretamente.
+
+Mudanças em client/src/lib/pdf.ts:
+
+  - import { toSvg } de html-to-image → import html2canvas de html2canvas
+  - Adicionada função normalizarCoresOklch(elemento):
+      Walk todos os elementos filhos, lê getComputedStyle() para
+      color, backgroundColor, borderColors, outlineColor, boxShadow etc.
+      Aplica rgb resolvido como estilo inline. Retorna função de restore.
+  - capturarElemento() simplificada:
+      Chama normalizarCoresOklch + bgRestores antes da captura.
+      Usa html2canvas(elemento, { scale:2, useCORS:false,
+      allowTaint:false, foreignObjectRendering:false }).
+      Retorna { dataUrl, largura, altura } — sem imagens overlay.
+  - colocarGrupoNaPagina() simplificada:
+      Sem loop de overlay de imagens (html2canvas renderiza fotos diretamente).
+  - Removidas: aplicarPatchSafariSVG(), aguardarImagens(), ImageInfo interface.
+
+Dependência nova:
+  + html2canvas 1.4.1
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → substituição completa da lógica de captura
+  - package.json           → html2canvas 1.4.1 adicionado
+  - pnpm-lock.yaml         → atualizado pelo pnpm add
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts package.json pnpm-lock.yaml to-do.md git.txt
+  git commit -m "fix(pdf): substitui html-to-image por html2canvas — corrige SecurityError Safari"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1Y — Fix definitivo SecurityError Safari (crossOrigin + fontes)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Segunda rodada de correção do SecurityError: The operation is insecure
+no Safari ao exportar PDF. A Parte 1X removeu os background-image
+externos, mas o erro persistia.
+
+Causa raiz identificada via leitura do código-fonte do html-to-image
+v1.11.13 instalado (node_modules/html-to-image/es/util.js):
+
+  export function createImage(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => { img.decode().then(() => {
+        requestAnimationFrame(() => resolve(img)); }); };
+      img.onerror = reject;
+      img.crossOrigin = 'anonymous';  ← PROBLEMA
+      img.decoding = 'async';
+      img.src = url;
+    });
+  }
+
+html-to-image seta img.crossOrigin = 'anonymous' ANTES de img.src.
+No Safari, mesmo um Blob URL same-origin fica marcado como "origin-dirty"
+quando crossOrigin='anonymous' está presente ao setar o src, fazendo
+canvas.toDataURL() lançar SecurityError.
+
+Correções aplicadas em client/src/lib/pdf.ts:
+
+  1. aplicarPatchSafariSVG():
+     Após criar o Blob URL (conversão do SVG data URL), chamamos
+     this.removeAttribute('crossorigin') ANTES de setSrcOriginal.call(this, blobUrl).
+     Isso limpa o atributo que html-to-image havia setado momentos antes.
+     O Blob URL então carrega sem modo CORS → canvas NOT tainted → toDataURL() funciona.
+
+  2. capturarElemento():
+     Injetamos um <style> temporário antes do toJpeg:
+       * { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif !important; }
+     Isso força fontes de sistema durante a captura, eliminando qualquer
+     referência a web fonts cross-origin (DM Sans, IBM Plex Mono etc.) no
+     SVG gerado. Removemos o style no finally. O PDF ficará com fonts de
+     sistema (ligeiramente diferente), mas o export funciona corretamente.
+
+Defesa em profundidade — três camadas ativas:
+  - Parte 1X: background-image externos → "none" antes da captura
+  - Parte 1Y item 1: crossOrigin='anonymous' removido antes do Blob URL
+  - Parte 1Y item 2: fontes de sistema forçadas no SVG
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts  → removeAttribute('crossorigin') + styleFontesSistema
+  - to-do.md               → tarefas marcadas concluídas
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): corrige SecurityError Safari — remove crossOrigin e força fontes de sistema"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1X — Corrige SecurityError no Safari (background-image)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Corrigido o SecurityError: The operation is insecure no Safari
+ao exportar o PDF.
+
+Causa raiz: as constantes HERO_BANNER, BODY_BG, PERFORMANCE_BG
+e MOBILITY_BG são URLs externas do CloudFront usadas como
+background-image CSS inline (style={{ backgroundImage: url(...) }}).
+O html-to-image chamava fetchAsDataURL() para essas URLs,
+o que resultava em canvas.toDataURL() lançar SecurityError
+no Safari.
+
+Correções:
+
+  1. pdf.ts → capturarElemento():
+     Antes de chamar toJpeg(), a função percorre todos os filhos
+     do elemento capturado (hero ou section-card) e zera para
+     "none" qualquer style.backgroundImage que contenha uma URL
+     http/https externa. No finally, os valores originais são
+     restaurados. O html-to-image nunca vê URLs externas, então
+     fetchAsDataURL não é chamado para esses recursos.
+
+  2. Home.tsx → <header className="pdf-hero">:
+     Adicionado style={{ backgroundColor: '#0A3D47' }} como cor
+     de fallback. No browser, está coberto pela foto do hero
+     (sem mudança visual). No PDF, quando a foto é removida pelo
+     passo 1, o gradiente azul-teal fica sobre um fundo sólido
+     escuro, mantendo o visual profissional sem depender da foto.
+
+Fotos posturais e bioimpedância NÃO afetadas — elas usam
+<img src="data:..."> e são adicionadas ao PDF via overlay
+separado, mecanismo completamente independente.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts     → bgRestores em capturarElemento
+  - client/src/pages/Home.tsx → backgroundColor no header hero
+  - to-do.md                  → tarefas marcadas concluídas
+  - git.txt                   → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts \
+          client/src/pages/Home.tsx \
+          to-do.md git.txt
+  git commit -m "fix(pdf): corrige SecurityError Safari — remove background-image externos antes da captura"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1W — Export PDF: Hero, imagens, agrupamento de seções
+           e correção de erros no Safari
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-28. Branch ativa: ficha.
+
+Série de melhorias no export PDF e correções de bugs Safari:
+
+  1. Hero Banner aparece no PDF
+     O <header> do app passou de section-card para pdf-hero.
+     O exportarPDF() captura o hero separado e o insere na
+     primeira página, antes das seções.
+
+  2. Botão Relatório e botões X (remover imagem) ocultos no PDF
+     Elementos com a classe pdf-hide são ocultados antes da
+     captura e restaurados logo depois.
+     - Home.tsx: div da toolbar ganhou pdf-hide
+     - ImageUpload.tsx: botão X ganhou pdf-hide
+
+  3. Seções agrupadas na mesma página do PDF
+     Nova função agruparSecoes() lê o atributo data-pdf-join="prev"
+     para colocar seções consecutivas juntas. Grupos resultantes:
+       Página 1: Hero + Seção I + II
+       Página 2: Seção III
+       Página 3: Seção IV + V
+       Página 4: Seção VI
+       Página 5: Seção VII + VIII
+       Página 6: Seção IX + X
+       Página 7: Seção XI
+
+  4. Bug ScaleField corrigido
+     O botão selecionado (1-10) "vazava" para fora do círculo
+     no PDF. Causa: scale-110 + ring-2. Fix: removidos scale-110
+     e ring-2; adicionado border-2 border-primary/80.
+
+  5. Imagens (bioimpedância + fotos posturais) no PDF
+     Abordagem overlay: as <img data:...> são excluídas do SVG
+     (para não inflar o tamanho), mas suas posições e dimensões
+     são coletadas antes via getBoundingClientRect. Depois da
+     captura do fundo, cada imagem é adicionada ao PDF via
+     pdf.addImage na posição exata (object-contain calculado).
+
+  6. Correção Safari — data:image/svg+xml bloqueado
+     O html-to-image define img.src = "data:image/svg+xml,...".
+     O Safari bloqueia isso por segurança. Fix: monkey-patch
+     temporário em HTMLImageElement.prototype.src que intercepta
+     SVG data URLs e as converte para Blob URLs (same-origin)
+     antes que o Safari as veja. O patch é removido no finally.
+
+  7. Correção Safari — SecurityError: The operation is insecure
+     Canvas.toDataURL() lançava SecurityError porque o SVG gerado
+     pelo html-to-image continha a <link> do Google Fonts, que
+     marca o canvas como "tainted" no Safari. Fix duplo:
+     - skipFonts: true nas opções do toJpeg (não tenta inlinar
+       nenhuma fonte, elimina acesso a cssRules cross-origin)
+     - filter expandido: <link rel="stylesheet"> cross-origin é
+       excluído do clone antes de entrar no SVG
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/lib/pdf.ts          → todas as mudanças de export
+  - client/src/pages/Home.tsx      → pdf-hero, pdf-hide, pdfJoinPrev,
+                                      ScaleField border fix
+  - client/src/components/ImageUpload.tsx → pdf-hide no botão X
+  - to-do.md                       → tarefas marcadas concluídas
+  - git.txt                        → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts \
+          client/src/pages/Home.tsx \
+          client/src/components/ImageUpload.tsx \
+          to-do.md git.txt
+  git commit -m "feat(pdf): export com Hero, imagens e agrupamento de seções; corrige Safari"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1V — Separa Seção IX (Força) e Seção X (Cardio)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-27. Branch ativa: ficha.
+
+A Seção IX, que misturava Avaliação de Força e Condicionamento
+Cardiorrespiratório num único bloco, foi separada em duas seções:
+
+  Seção IX — "Avaliação de Força"
+    - Tabela de Testes de Força (1RM): igual à anterior
+    - Novo campo: LinesField "Observações sobre a Avaliação de
+      Força" (chave `obs_forca`), logo abaixo da tabela
+
+  Seção X — "Condicionamento Cardiorrespiratório"
+    - Todo o conteúdo cardio (FC repouso, PA, seletor Cooper/
+      Rockport, campos dos testes, resultado VO₂, tabela histórica)
+    - Ícone Activity, cor orange, sectionNumber="X"
+    - O <h3> de subtítulo interno ("Condicionamento...") foi
+      removido — o título da seção já cobre isso
+
+A numeração XI (Observações e Plano de Ação) não mudou.
+Nenhuma chave do formData foi renomeada — PDFs e rascunhos
+existentes continuam compatíveis.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivo alterado:
+  - client/src/pages/Home.tsx  → separação das seções + campo obs_forca
+  - to-do.md                   → tarefas marcadas concluídas
+  - git.txt                    → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx to-do.md git.txt
+  git commit -m "feat(ficha): separa Seção IX (Força) e Seção X (Cardiorrespiratório)"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1U — Remove Seção X (Metas e Planejamento)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-27. Branch ativa: ficha.
+
+A Seção X "Metas e Planejamento" (três textareas: Curto Prazo,
+Médio Prazo e Longo Prazo) foi removida do formulário e do
+relatório de progresso.
+
+Mudanças em client/src/pages/Home.tsx:
+  - Bloco JSX da Seção X removido (~23 linhas)
+  - Import do ícone `Target` removido (não era usado em mais
+    nenhum lugar)
+
+Mudanças em client/src/pages/Relatorio.tsx:
+  - Bloco "10. METAS — Objetivos definidos" removido (~22 linhas)
+  - Variável `hasMetas` removida (dependia das chaves excluídas)
+  - Import de `Target` mantido (ainda usado na linha do campo
+    "Objetivo" no cabeçalho do relatório)
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/pages/Home.tsx     → seção X removida + import Target
+  - client/src/pages/Relatorio.tsx → bloco metas + hasMetas removidos
+  - to-do.md                      → tarefas marcadas concluídas
+  - git.txt                       → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx client/src/pages/Relatorio.tsx to-do.md git.txt
+  git commit -m "feat(ficha): remove Seção X — Metas e Planejamento"
+  git push
+
+==========================================================
+
+
+============================================================
+  GIT.TXT — GUIA COMPLETO DE GIT
+  Projeto: avaliacao_fisica
+  Atualizado automaticamente pelo Claude ao fim de cada sessão
+============================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1T — Campo "Tempo para Milha" aceita formato MM:SS
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-27. Branch ativa: ficha.
+
+O campo "Tempo para 1 Milha" no Teste de Rockport passou de
+input numérico decimal (ex: 14.5) para texto com máscara
+automática no formato MM:SS (ex: 14:30), limitado a 59:59.
+
+Mudanças em client/src/pages/Home.tsx:
+
+  1. Nova função mmssParaMinutos(valor: string): number
+     Converte "14:30" → 14.5 (min + seg/60).
+     Se não houver ":", faz parseFloat como fallback —
+     fichas antigas salvas com decimal continuam calculando
+     corretamente.
+
+  2. calculateVO2MaxRockport agora usa mmssParaMinutos(tempo)
+     em vez de parseFloat(tempo) diretamente.
+
+  3. Input do campo tempo:
+     - type="number" → type="text" com inputMode="numeric"
+     - Máscara no onChange: tira não-dígitos, limita a 4
+       dígitos, insere ":" após posição 2, trava MM ≤ 59
+       e SS ≤ 59.
+     - placeholder "Ex: 14.5" → "Ex: 14:30"
+     - label "(minutos)" → "(MM:SS)"
+     - maxLength={5}
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivo alterado:
+  - client/src/pages/Home.tsx  → 3 mudanças descritas acima
+  - to-do.md                   → tarefas marcadas concluídas
+  - git.txt                    → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx to-do.md git.txt
+  git commit -m "feat(ficha): campo Tempo para Milha aceita formato MM:SS"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1S — Remove tabela "Zonas de Treino" da Seção IX
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-27. Branch ativa: ficha.
+
+Removida a tabela "Zonas de Treino — % do 1RM Atual" que
+aparecia abaixo dos Testes de Força (1RM) na Seção IX.
+
+A tabela era puramente visual (calculava percentuais do
+último 1RM preenchido). Nenhum dado do formData foi alterado.
+A tabela de Testes de Força (1RM) permanece intacta.
+
+Arquivo alterado:
+  - client/src/pages/Home.tsx  → bloco JSX das linhas 1308–1365
+                                  removido (IIFE com cálculo de
+                                  zonas + tabela completa)
+  - to-do.md                   → tarefa marcada concluída
+  - git.txt                    → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx to-do.md git.txt
+  git commit -m "feat(ficha): remove tabela Zonas de Treino da Seção IX"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1R — Campo "Observações de Mobilidade" na Seção VIII
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-27. Branch ativa: ficha.
+
+Adicionado campo de texto livre "Observações de Mobilidade" na
+Seção VIII (Avaliação de Movimento e Mobilidade), logo abaixo
+do cartão de pontuação FMS.
+
+O campo usa o componente LinesField já existente no projeto —
+mesmo visual das demais observações (Anamnese, Metas, etc.).
+A chave no formData é `obs_mobilidade`; vai para o rascunho
+do localStorage e para o PDF exportado automaticamente.
+
+Arquivo alterado:
+  - client/src/pages/Home.tsx  → LinesField adicionado após o })()}
+                                  do bloco de pontuação FMS (Seção VIII)
+  - to-do.md                   → tarefa marcada concluída
+  - git.txt                    → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx to-do.md git.txt
+  git commit -m "feat(ficha): adiciona campo Observações de Mobilidade na Seção VIII"
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1Q — Remove linha "Altura (cm)" da tabela de bioimpedância
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-27. Branch ativa: ficha.
+
+A linha "Altura (cm)" foi removida da tabela da Seção IV.
+A altura agora é fornecida exclusivamente pelo retângulo azul
+no topo da mesma seção (campo `altura`).
+
+Mudanças em client/src/pages/Home.tsx:
+
+  1. Array `rows` da tabela de bioimpedância: removida a string
+     "Altura (cm)" (era o segundo elemento, índice 1).
+     As linhas seguintes (Água Corporal em diante) passaram a
+     usar os índices 1–10 em vez de 2–11.
+
+  2. Bloco de sync removido:
+     Era "if (/^bioimpedancia_1_\d$/.test(key) && value) {
+       next.altura = value as string; }"
+     Esse código copiava a altura da tabela para o campo `altura`.
+     Com a linha removida, não faz mais sentido.
+
+  3. Trigger do IMC atualizado:
+     Antes: "/^bioimpedancia_0_\d$/ || /^bioimpedancia_1_\d$/ || key === 'altura'"
+     Depois: "/^bioimpedancia_0_\d$/ || key === 'altura'"
+     O IMC continua recalculando ao mudar o Peso (bioimpedância_0_X)
+     ou a Altura do retângulo azul (key === "altura").
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivo alterado:
+  - client/src/pages/Home.tsx  → 3 mudanças descritas acima
+  - to-do.md                   → tarefas marcadas concluídas
+  - git.txt                    → este arquivo
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx to-do.md git.txt
+  git commit -m "fix(ficha): remove linha Altura da tabela de bioimpedância
+
+A Seção IV exibia Altura (cm) tanto no retângulo azul quanto como
+linha da tabela de bioimpedância. A linha da tabela foi removida
+para evitar duplicidade. Sync bioimpedancia_1_X → altura removido;
+trigger do IMC atualizado para não depender mais dessa linha."
+  git push
+
+==========================================================
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1P — Limpeza de código morto
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-26. Branch ativa: ficha.
+
+Auditoria identificou e removeu código morto acumulado:
+
+  1. Bug corrigido — Home.tsx (linhas 1527 e 1531):
+     A classificação do VO₂ máx consultava `formData.sexo`
+     (campo inexistente). O campo real é `formData.genero`.
+     O resultado era sempre "Masculino" independente do sexo
+     registrado na ficha.
+
+  2. Comentário removido — Home.tsx:
+     `{/* Signatures - Removed */}` era referência a
+     funcionalidade de assinaturas que foi deletada há muito
+     tempo. Removido pois não documenta nada útil.
+
+  3. Hooks deletados (nunca importados em nenhum componente):
+     - client/src/hooks/useMobile.tsx
+     - client/src/hooks/useComposition.ts
+     - client/src/hooks/usePersistFn.ts
+
+  4. client/src/const.ts deletado:
+     Continha `getLoginUrl()` e re-exportação de constantes
+     de sessão — resíduo de um sistema OAuth que foi removido
+     quando o app virou SPA pura.
+
+  5. shared/const.ts — COOKIE_NAME e ONE_YEAR_MS removidos:
+     Constantes de autenticação sem sentido em SPA sem servidor.
+     A função `getPesoAtual()` que vive no mesmo arquivo foi
+     mantida (é usada).
+
+  6. client/src/contexts/ThemeContext.tsx deletado:
+     O ThemeProvider estava ativo em App.tsx mas o hook
+     useTheme() nunca era consumido por nenhum componente.
+     O tema é fixo em "light" via CSS — dark mode não está
+     planejado.
+
+  7. App.tsx — import e wrapper <ThemeProvider> removidos:
+     Sem o ThemeContext, o wrapper não fazia nada.
+
+pnpm check ✅ — zero erros de TypeScript.
+
+Arquivos alterados:
+  - client/src/pages/Home.tsx    → bug sexo→genero + comentário
+  - client/src/App.tsx           → remove ThemeProvider
+  - shared/const.ts              → remove COOKIE_NAME e ONE_YEAR_MS
+  - to-do.md                     → todas as tarefas concluídas
+
+Arquivos deletados:
+  - client/src/hooks/useMobile.tsx
+  - client/src/hooks/useComposition.ts
+  - client/src/hooks/usePersistFn.ts
+  - client/src/const.ts
+  - client/src/contexts/ThemeContext.tsx
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx client/src/App.tsx \
+          shared/const.ts to-do.md git.txt
+
+  git rm client/src/hooks/useMobile.tsx \
+         client/src/hooks/useComposition.ts \
+         client/src/hooks/usePersistFn.ts \
+         client/src/const.ts \
+         client/src/contexts/ThemeContext.tsx
+
+  git commit -m "chore: remove código morto e corrige bug de classificação VO₂
+
+- Corrige bug: formData.sexo → formData.genero na classificação VO₂ máx
+  (resultado sempre caía no fallback Masculino independente do campo genero)
+- Remove 3 hooks nunca importados (useMobile, useComposition, usePersistFn)
+- Remove client/src/const.ts (código OAuth obsoleto — sistema removido)
+- Remove COOKIE_NAME e ONE_YEAR_MS de shared/const.ts (sem sentido em SPA)
+- Remove ThemeContext.tsx e wrapper ThemeProvider do App.tsx (dark mode
+  nunca implementado; tema fixo em light via CSS)"
+
+  git push
+
+==========================================================
+
+════════════════════════════════════════════════════════════
+  PARTE 1O — Formato do nome do arquivo exportado
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-26. Branch ativa: ficha.
+
+Alterada a função nomeArquivo() em client/src/lib/pdf.ts.
+O nome do arquivo PDF exportado passou do formato slug
+americano para o formato legível com prefixo fixo:
+
+  Antes: joao_silva_2026-05-26.pdf
+  Depois: Avaliação Física - João Silva 26-05-26.pdf
+
+Mudanças na lógica:
+  - Prefixo fixo "Avaliação Física - " adicionado
+  - Nome do aluno mantido como digitado (sem lowercase, sem
+    substituição de espaços) — apenas os 8 caracteres
+    inválidos para sistemas de arquivo são removidos
+    (/ \ : * ? " < > |)
+  - Data reformatada de YYYY-MM-DD para DD-MM-YY via
+    montagem manual com padStart (toISOString() só gera
+    formato americano)
+  - Fallback "ficha" mantido quando nome está vazio
+
+Arquivo alterado:
+  - client/src/lib/pdf.ts  → função nomeArquivo() (linhas 35–45)
+  - to-do.md               → tarefa marcada concluída
+  - git.txt                → este arquivo
+
+Comandos para commitar:
+  git add client/src/lib/pdf.ts to-do.md git.txt
+  git commit -m "fix(pdf): renomeia export para 'Avaliação Física - Nome DD-MM-YY.pdf'"
+  git push
+
+==========================================================
+
+════════════════════════════════════════════════════════════
+  PARTE 1N — Migração para Modo "Documento Único"
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-26. Branch ativa: ficha.
+
+Mudança arquitetural grande: o sistema deixou de ser
+full-stack (Express + PostgreSQL + R2) e virou uma SPA pura
+sem servidor. Cada ficha é um documento independente que
+exporta como PDF com JSON anexo (re-importável depois).
+
+O fluxo completo:
+
+  1. Tarefa zero: script de export descarregou os 10 alunos
+     em produção (Postgres + R2) para a pasta ./export/ local.
+     Backup confirmado no iCloud antes da migração.
+
+  2. Infra nova:
+     - client/src/lib/storage.ts   (rascunho em localStorage)
+     - client/src/lib/pdf.ts       (export/import PDF+anexo)
+     - Deps: pdf-lib + jspdf + html-to-image
+
+     Atenção: usamos html-to-image (não html2canvas) porque
+     o Tailwind v4 usa cores oklch() que o html2canvas não
+     parseia. Bug conhecido.
+
+  3. Refatoração: ImageUpload deixou de mandar pra R2 e passou
+     a converter foto em base64 (data URL) via FileReader.
+     Home.tsx perdeu o useParams<alunoId>, todos os useEffect
+     de auto-save server (5s+sendBeacon) e a tela de loading.
+     Adicionados botões Exportar/Importar/Nova Ficha na toolbar.
+
+  4. Limpeza: deletados Login.tsx, Alunos.tsx, lib/api.ts,
+     server/ inteira, Dockerfile + docker-compose + railway.json,
+     .dockerignore, pasta data/, e 26 dependências obsoletas.
+
+  5. Auditoria sênior pegou:
+     - EditableTableWithMethod (40 linhas órfãs) — removida
+     - 12 componentes shadcn órfãos — removidos
+     - NotFound.tsx em inglês — refeito em PT-BR com design
+       Clinical Sport Journal
+     - 9 deps @radix-ui órfãs — removidas
+
+  6. Cleanup adicional aprovado:
+     - Vestígios plataforma Manus (vite-plugin-manus-runtime,
+       jsxLocPlugin, vitePluginManusDebugCollector, patch
+       wouter) — removidos. vite.config.ts foi de 207 linhas
+       pra 38.
+     - Pasta ./export/ local apagada (iCloud é a única cópia).
+     - Code-splitting: Relatorio + recharts ficaram lazy via
+       React.lazy. pdf-lib + jspdf + html-to-image viraram
+       dynamic import nos handlers do Home. Bundle inicial
+       reduziu de 1.68 MB para 365 KB (78% menor).
+
+Total: 49+26=75 deps → 14+13=27 deps (-64%).
+
+Comandos para commitar esta sessão:
+
+  git add CLAUDE.md to-do.md .gitignore .env package.json \
+          pnpm-lock.yaml vite.config.ts git.txt \
+          client/src/App.tsx \
+          client/src/components/ImageUpload.tsx \
+          client/src/lib/storage.ts \
+          client/src/lib/pdf.ts \
+          client/src/pages/Home.tsx \
+          client/src/pages/NotFound.tsx \
+          client/src/pages/Relatorio.tsx
+
+  git rm -r client/src/components/ui/button.tsx \
+            client/src/components/ui/card.tsx \
+            client/src/components/ui/dialog.tsx \
+            client/src/components/ui/dropdown-menu.tsx \
+            client/src/components/ui/input.tsx \
+            client/src/components/ui/label.tsx \
+            client/src/components/ui/select.tsx \
+            client/src/components/ui/separator.tsx \
+            client/src/components/ui/sheet.tsx \
+            client/src/components/ui/skeleton.tsx \
+            client/src/components/ui/textarea.tsx \
+            client/src/components/ui/toggle.tsx \
+            client/src/lib/api.ts \
+            client/src/pages/Login.tsx \
+            client/src/pages/Alunos.tsx \
+            server \
+            patches \
+            Dockerfile docker-compose.yml docker-compose.dev.yml \
+            railway.json .dockerignore
+
+  git commit -m "feat: migra para SPA pura com export/import PDF+JSON
+
+- Remove backend (Express + Postgres + R2 + JWT)
+- Adiciona export/import de PDF com JSON anexo via pdf-lib
+- Fotos viram base64 inline (sem servidor de arquivos)
+- Rascunho automático em localStorage
+- Auditoria: -64% de dependências, code-splitting agressivo"
+
+  git push origin ficha
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1M — Reestruturação da Seção IV (Bioimpedância)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-25 (continuação). Branch ativa: ficha.
+
+Três ajustes simultâneos em client/src/pages/Home.tsx:
+
+  1. Tabela de bio reordenada + 2 novas linhas:
+     - Altura (cm) em 2º lugar (linha 1, após Peso Total)
+     - %GC Sub-cutânea (%) como 10ª linha
+     - Massa M. Esquelética, Massa Gorda e Gordura Visceral
+       reposicionadas conforme branch design
+
+  2. Sincronização: bioimpedancia_1_X → campo `altura`
+     Quando o personal digita Altura na tabela, o campo
+     `altura` é atualizado e o IMC recalcula automaticamente.
+
+  3. Cartões Altura/IMC/RCQ movidos da Seção V para o topo
+     da Seção IV. Seção V agora tem só a tabela de Perímetros.
+
+pnpm check ✅  |  pnpm build ✅  |  bundle 240.58 KB gzip
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx to-do.md git.txt
+  git commit -m "feat(ficha): reestrutura Seção IV — reordena bio, sync Altura→IMC, move cartões"
+  git push
+
+==========================================================
+
+════════════════════════════════════════════════════════════
+  PARTE 1L — Campos novos da branch design para ficha
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-25. Branch ativa: ficha.
+
+Traz três campos novos da branch `design` para o `Home.tsx`
+da branch `ficha` (Clinical Sports Journal), sem glassmorphism:
+
+  1. CPF — já existia na ficha (nenhuma mudança necessária)
+  2. Restrições médicas — adicionado na Seção II (Anamnese)
+  3. Perímetros Corporais — removidos Antebraço D/E,
+     adicionados Ombro e Braço C (seguindo branch design)
+
+Arquivo alterado: client/src/pages/Home.tsx
+pnpm check ✅  |  pnpm build ✅
+
+Comandos para commitar:
+  git add client/src/pages/Home.tsx to-do.md
+  git commit -m "feat(ficha): campos novos — Ombro, Braço C, Restrições Médicas"
+  git push
+
+==========================================================
+
+════════════════════════════════════════════════════════════
+  PARTE 1K — Recuperação de Home.tsx pelo último commit
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-10 (continuação). Durante edição manual no
+Home.tsx, Julio digitou caracteres acidentais e usou CMD+Z
+algumas vezes no VS Code. Acreditando ter desfeito de mais,
+pediu para restaurar o arquivo pelo último commit (6d1217d).
+
+Diagnóstico via "git diff client/src/pages/Home.tsx":
+
+  - Commit 6d1217d (HEAD):
+      • Linha 1 contém o typo "11/*" (resíduo de outra sessão)
+      • Sem import de Loader2
+      • Sem feature de OCR de bioimpedância
+
+  - Disco (não commitado):
+      • Linha 1 limpa: "/*"
+      • Import de Loader2 adicionado
+      • Feature de extrairDadosBioimpedancia() + overlay
+        "Lendo dados da IA…" implementada perto da linha 1033
+
+  → Conclusão: o disco tinha MAIS código que o commit, não
+    menos. O que Julio achava ter perdido com o CMD+Z na
+    verdade nunca tinha sido commitado.
+
+Decisão de Julio: descartar a feature de OCR de bioimpedância
+(não vai mais usar). Restauração feita pelo commit; o typo
+"11" da linha 1 é apagado manualmente em seguida.
+
+Comandos:
+
+  1. git status
+     → confere o estado: deve mostrar Home.tsx como modified
+
+  2. git restore client/src/pages/Home.tsx
+     → pega a versão do arquivo no último commit (6d1217d)
+       e sobrescreve o disco. Mudanças não commitadas são
+       descartadas para sempre.
+
+  3. git status
+     → deve mostrar "nothing to commit, working tree clean"
+       (se Home.tsx era a única coisa modificada).
+
+Pós-restauração (edição manual no VS Code, sem git):
+
+  - Abrir client/src/pages/Home.tsx
+  - Linha 1 vai estar assim:    11/*
+  - Apagar os dois "1" do começo, deixando:    /*
+  - Salvar com CMD+S.
+
+  Por que esse typo está no commit? Ele entrou em alguma
+  digitação anterior e foi commitado sem querer. Como agora
+  estamos voltando pra esse commit, ele volta junto. A
+  correção é manual, e cabe num commit pequeno futuro
+  (ex.: "fix(home): remove caracteres '11' acidentais
+  no topo do arquivo") — sem pressa.
+
+NÃO há novo commit nessa sessão. O propósito é só recuperar
+o estado anterior — o commit 6d1217d continua sendo o ponto
+de referência da branch ficha.
+
+Arquivos alterados nessa sessão:
+  - client/src/pages/Home.tsx  → restaurado para o commit
+  - git.txt                    → entrada desta sessão +
+                                 git restore adicionado ao
+                                 guia permanente da PARTE 2
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1J — Limpeza de componentes shadcn/ui órfãos
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-10 (continuação). Auditoria do diretório
+client/src/components/ui/ identificou 41 componentes shadcn
+nunca importados pelo app — de 53 instalados, só 12 estavam
+em uso. Validação cruzada em 5 frentes (imports @/, relativos,
+dinâmicos, strings, cadeia interna entre componentes UI)
+confirmou que era código morto.
+
+Análise dos 4 borderline:
+  - select       → MANTIDO (2 <select> nativos no Home aguardando
+                    upgrade no redesign)
+  - dropdown-menu → MANTIDO (alta probabilidade no redesign +
+                    multi-tenancy futuro: menu perfil, ações)
+  - calendar     → DELETADO (Alunos.tsx usa máscara DD/MM/AAAA
+                    manual com auto-avanço — UX superior ao
+                    date-picker visual)
+  - tabs         → DELETADO (zero uso; eventual migração das
+                    seções sanfona para tabs seria refator
+                    grande, não troca de componente)
+
+Total removido:
+  - 39 arquivos .tsx em client/src/components/ui/
+  - 24 dependências npm:
+      • 18 @radix-ui/* (accordion, alert-dialog, aspect-ratio,
+        avatar, checkbox, collapsible, context-menu, hover-card,
+        menubar, navigation-menu, popover, progress, radio-group,
+        scroll-area, slider, switch, tabs, toggle-group)
+      • 6 outras (react-day-picker, cmdk, vaul, input-otp,
+        react-resizable-panels, embla-carousel-react)
+
+Resultado:
+  - 14 componentes UI restantes (12 em uso + 2 reserva)
+  - package.json: -24 linhas
+  - pnpm-lock.yaml: -727 linhas
+  - Bundle final do cliente INALTERADO (240.57 KB gzip) — deps
+    órfãs já eram tree-shaked pelo Vite. Ganho real é em
+    node_modules, tempo de pnpm install e ruído nas buscas.
+
+Validação:
+  - pnpm check  → ✅ zero erros de tipagem
+  - pnpm build  → ✅ build limpo em 1.66s
+  - grep robusto → zero referências residuais aos 39 deletados
+
+Reversibilidade:
+  - shadcn não é dependência npm; componentes são código
+    copiado. Para readicionar qualquer um deletado:
+      pnpm dlx shadcn@latest add <nome>
+
+Arquivos alterados:
+  - 39 arquivos deletados em client/src/components/ui/
+  - package.json   → -24 dependencies
+  - pnpm-lock.yaml → regenerado pelo pnpm remove
+  - to-do.md       → microtarefas S.1–S.8 marcadas
+  - git.txt        → este arquivo
+
+Comandos:
+
+  1. git status
+  2. git add -A client/src/components/ui/ package.json pnpm-lock.yaml to-do.md git.txt
+
+     Nota sobre o "git add -A": para deletar arquivos, usamos
+     "-A" no diretório específico (não na raiz) porque ele
+     reconhece tanto modificações quanto deleções. É a forma
+     idiomática para limpezas em massa. Limitamos o escopo a
+     "client/src/components/ui/" para garantir que nenhum
+     outro arquivo deletado por engano em outro lugar entre
+     no commit.
+
+  3. git commit -m "chore(deps): remove 39 componentes shadcn/ui órfãos e 24 deps npm
+
+Auditoria do diretório client/src/components/ui/ identificou 41 componentes
+shadcn nunca importados pelo app (de 53 instalados, só 12 em uso).
+
+Mantidos 2 borderline para futuro redesign visual:
+- select.tsx (uso ativo em Home.tsx via <select> nativo)
+- dropdown-menu.tsx (alta probabilidade em multi-tenancy)
+
+Deletados 39 arquivos .tsx + 24 dependências npm exclusivas:
+- 18 @radix-ui/* (accordion, alert-dialog, aspect-ratio, avatar,
+  checkbox, collapsible, context-menu, hover-card, menubar,
+  navigation-menu, popover, progress, radio-group, scroll-area,
+  slider, switch, tabs, toggle-group)
+- 6 outras: react-day-picker, cmdk, vaul, input-otp,
+  react-resizable-panels, embla-carousel-react
+
+Bundle final inalterado (240.57 KB gzip — deps já eram tree-shaked
+pelo Vite). Ganho em node_modules, tempo de pnpm install no Railway
+e clareza do diretório ui/.
+
+Reversibilidade: shadcn é código copiado, não dep npm — para readicionar
+qualquer componente: pnpm dlx shadcn@latest add <nome>.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1I — Reformatação do CLAUDE.md (limpeza de obsolescência)
+════════════════════════════════════════════════════════════
+
+Sessão 2026-05-10. Documentação descrevia funcionalidades como
+"a criar / em implantação / em migração", mas elas já estão em
+produção há semanas. Risco: futuras sessões do Claude (e qualquer
+dev novo) lendo a doc desatualizada e tomando decisões erradas
+(ex.: tentar criar a tabela `imagens` que já existe, ou buscar
+campos base64 dentro de `dados_json`).
+
+Pontos corrigidos:
+
+  1. Stack: R2 deixa de ser "em implantação" — está em uso.
+  2. Tabela `imagens`: tira "(a criar)", descreve papel real.
+  3. Bloco do base64: REMOVIDO. Substituído por parágrafo do
+     fluxo R2 atual (cliente → /api/upload → R2 → tabela imagens).
+  4. Rota /api/upload: tira "(a criar)" e descreve comportamento.
+  5. Rota /api/login: ADICIONADA (não estava documentada apesar
+     de existir desde a Fase A do hardening).
+  6. Parágrafo do servidor: corrige porta (process.env.PORT, não
+     8080 fixo) e body parser (1mb, não 20mb). Aproveita para
+     mencionar helmet/CSP/rate limit já ativos.
+  7. Variáveis de ambiente: tira "(a adicionar)" das do R2 e
+     ADICIONA AUTH_PASSWORD_HASH, JWT_SECRET, R2_PUBLIC_URL.
+
+Apenas documentação. Nenhuma linha de código do app foi tocada.
+
+Arquivos alterados:
+
+  - CLAUDE.md   → reformatação descrita acima
+  - to-do.md    → nova sessão T.1–T.9 marcada concluída
+  - git.txt     → este arquivo
+
+Comandos:
+
+  1. git status
+  2. git add CLAUDE.md to-do.md git.txt
+  3. git commit -m "docs(claude.md): atualiza arquitetura para refletir produção atual
+
+Remove referências a 'a criar / em implantação / em migração' que viraram passado:
+- R2 deixa de ser 'em implantação'
+- tabela imagens deixa de ser '(a criar)'
+- bloco do base64 removido — substituído pelo fluxo R2 atual
+- rota /api/upload deixa de ser '(a criar)'
+
+Adiciona o que faltava no documento mas existe no código:
+- rota POST /api/login (autenticação JWT)
+- env vars AUTH_PASSWORD_HASH, JWT_SECRET, R2_PUBLIC_URL
+- menção a helmet/CSP/rate limit no parágrafo do servidor
+
+Corrige factualmente:
+- porta: process.env.PORT (Railway dinâmica), não 8080 fixo
+- body parser: 1mb, não 20mb
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1H — CSP autoriza blob: e WASM (correção do pipeline)
+════════════════════════════════════════════════════════════
+
+Bug em produção pós-deploy da Parte 1G: o pipeline de redimensionamento
+ficou bloqueado pela CSP em enforcement (Parte 1D). Console mostrava:
+
+  Refused to load blob:... img-src directive of the CSP
+  Refused to load blob:... worker-src directive of the CSP
+  [ImageUpload] processamento de imagem falhou – Error: não foi possível
+                                                          abrir a imagem
+
+Causa: URL.createObjectURL() gera URLs blob:..., mas a CSP atual só
+autorizava 'self', data:, CloudFront e R2 em img-src. Worker-src nem
+existia explícito (herdava 'self' de defaultSrc). E heic2any (libheif-js)
+é WASM, exigindo 'wasm-unsafe-eval' em script-src.
+
+Mudanças mínimas necessárias na CSP (server/index.ts):
+
+  - imgSrc            → adiciona "blob:"
+  - workerSrc         → nova diretiva, ["'self'", "blob:"]
+  - scriptSrc         → adiciona "'wasm-unsafe-eval'"
+
+Análise de segurança:
+
+  - blob: em img/worker é mesma origem (só JS da página gera blob URL).
+    Padrão da indústria para apps que processam imagens client-side.
+  - 'wasm-unsafe-eval' é o relaxamento mais sensível. Aceitável aqui porque
+    o WASM vem do nosso próprio bundle (chunk lazy heic2any-XXX.js), não
+    de origem externa. script-src continua sem 'unsafe-inline' e sem
+    'unsafe-eval'. Pior caso prático: bug em libheif-js só causaria DoS
+    local da aba, não vazamento.
+  - default-src 'self', frame-ancestors 'none', object-src 'none' e
+    base-uri 'self' permanecem intocados — CSP segue forte.
+
+Arquivos alterados:
+
+  - server/index.ts  → 3 ajustes na configuração da CSP do helmet, com
+                        comentários inline explicando o motivo de cada um.
+  - to-do.md         → tarefas U.1 a U.4 marcadas
+  - git.txt          → este arquivo
+
+Comandos:
+
+  1. git status
+  2. git add server/index.ts to-do.md git.txt
+  3. git commit -m "fix(security): CSP autoriza blob: e WASM para pipeline de upload
+
+A Parte 1G introduziu URL.createObjectURL() no client para o pipeline de
+redimensionamento de imagens via Canvas. A CSP em enforcement (Parte 1D)
+não autorizava blob: em nenhuma diretiva, bloqueando todo o fluxo de upload.
+
+Mudanças mínimas:
+- img-src ganha 'blob:' (URL.createObjectURL para <img>)
+- nova diretiva worker-src ['self', 'blob:'] (heic2any usa Web Worker via blob)
+- script-src ganha 'wasm-unsafe-eval' (libheif-js é WASM)
+
+Justificativa: blob: em img/worker é mesma origem por construção; 'wasm-unsafe-eval'
+autoriza apenas o WASM do nosso próprio bundle (script-src segue 'self', sem
+'unsafe-inline' nem 'unsafe-eval'). default-src, frame-ancestors, object-src e
+base-uri intocados — CSP segue forte.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1G — Redimensionamento de imagens antes do upload
+════════════════════════════════════════════════════════════
+
+Bug em produção: foto do iPhone tem 36 MP (4536×8064). Conversão direta
+HEIC→JPEG via heic2any em JS ficou processando >30s sem completar — a aba
+travou por exhaustion de memória (decodar 36 MP RGBA aloca ~144 MB).
+
+Solução: pipeline em camadas que SEMPRE redimensiona via Canvas antes
+de enviar, independente do formato de origem.
+
+Pipeline (processarImagem):
+  1. Tenta carregar via <img> nativo (URL.createObjectURL).
+     Safari decoda HEIC nativamente — caminho rápido.
+     Chrome/Firefox decodam JPG/PNG/WebP nativamente.
+  2. Se <img> falhou E é HEIC → fallback heic2any (lazy import).
+  3. Canvas redimensiona pra max 2000px no maior lado, JPEG quality 0.85.
+
+Resultado: todo upload chega ao server como JPEG ≤ ~1.5 MB, em segundos,
+em qualquer browser. Foto do iPhone 36 MP → ~1500×2000, ~500-1000 KB.
+
+Arquivos alterados:
+
+  - client/src/components/ImageUpload.tsx
+       → Helpers novos:
+            · carregarComoImagem(blob) — Promise wrapping de <img>.onload
+            · redimensionarParaJpeg(img) — Canvas API com Math.min(1, ...)
+              para nunca aumentar imagens pequenas, exporta toBlob JPEG 0.85
+            · processarImagem(file) — orquestra: tenta nativo, fallback HEIC,
+              redimensiona
+       → Removido: converterHeicParaJpeg (substituído por processarImagem)
+       → handleFile passa a chamar processarImagem em vez de converter
+         apenas HEICs
+       → Constantes novas: MAX_LADO_PX (2000), QUALITY_JPEG (0.85)
+  - to-do.md  → tarefas V.1 a V.4 marcadas
+  - git.txt   → este arquivo
+
+Comandos:
+
+  1. git status
+  2. git add client/src/components/ImageUpload.tsx to-do.md git.txt
+  3. git commit -m "fix(upload): redimensiona imagens via Canvas antes do envio
+
+Foto de iPhone (36 MP) travava o upload: a conversão HEIC→JPEG via heic2any
+em JS rodava >30s sem completar (memory exhaustion ao decodar 36 MP RGBA).
+
+Pipeline novo passa toda imagem por Canvas API que redimensiona pra max
+2000px no lado maior antes do envio, em camadas:
+
+1. Tenta carregar via <img> nativo. Safari decoda HEIC nativamente — caminho
+   rápido. Chrome/Firefox decodam JPG/PNG/WebP nativamente.
+2. Se <img> falhar e for HEIC, usa heic2any como fallback (já em chunk
+   separado lazy-loaded).
+3. Canvas redimensiona e exporta JPEG quality 0.85.
+
+Resultado: upload chega ao server em segundos, ≤ 1.5 MB, em qualquer browser.
+Server e whitelist intocados.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1F — Suporte a HEIC nos uploads de foto
+════════════════════════════════════════════════════════════
+
+Bug em produção: iPhones salvam fotos em HEIC. O hardening da Fase B
+deixou a whitelist do server em [jpeg, png, webp] e o magic-bytes
+detector rejeitava HEIC com 400 ("tipo de arquivo não permitido").
+Resultado para o usuário: toast "Erro ao enviar a imagem" sem pista
+do motivo.
+
+Solução escolhida: converter HEIC → JPEG no NAVEGADOR antes de enviar.
+Server continua intocado (mantém whitelist estrita por magic bytes).
+
+Lib usada: heic2any (open-source, baseada em libheif-js).
+
+  ⚠️  IMPORTANTE — heic2any é GORDA (~340 KB gzip).
+      Por isso NÃO importamos estaticamente. Usamos import() dinâmico
+      dentro de converterHeicParaJpeg(), o que faz o Vite gerar um
+      chunk separado (heic2any-XXX.js) baixado SÓ quando o usuário
+      sobe um HEIC. Bundle principal continua igual ao anterior
+      (240 KB gzip).
+
+Bugs colaterais corrigidos no mesmo passe:
+
+  - Limite UI/server desalinhado: UI dizia "máx. 10 MB", server
+    rejeitava acima de 5 MB. Agora UI mostra "máx. 5 MB" lendo de
+    constante TAMANHO_MAX_MB (fonte única de verdade no client).
+  - Catch cego: o catch antigo era "} catch {" sem capturar o erro,
+    engolindo silenciosamente. Agora é "catch (err)" + console.error
+    com prefixo "[ImageUpload]".
+
+Fluxo novo do upload (visão de cima):
+
+  1. usuário escolhe foto
+  2. detecta HEIC (extensão .heic/.heif ou mime image/heic[f])
+  3. se HEIC: import() dinâmico do heic2any → converte para JPEG quality 0.85
+  4. valida tamanho do arquivo final (≤ 5 MB)
+  5. envia POST /api/upload (server vê apenas JPEG/PNG/WebP)
+
+Arquivos alterados:
+
+  - package.json + pnpm-lock.yaml  → +heic2any 0.0.4
+  - client/src/components/ImageUpload.tsx
+                                    → import dinâmico de heic2any em
+                                       converterHeicParaJpeg()
+                                    → ehHeic() helper para detecção
+                                    → TAMANHO_MAX_MB / TAMANHO_MAX_BYTES
+                                       constantes (alinhadas com server)
+                                    → handleFile() reescrita: detecta,
+                                       converte se HEIC, valida tamanho
+                                       no resultado final, log no catch
+                                    → label da UI passa a usar a constante
+                                       TAMANHO_MAX_MB
+  - to-do.md                       → tarefas W.1 a W.6 marcadas
+  - git.txt                        → este arquivo
+
+Comandos:
+
+  1. git status
+  2. git add package.json pnpm-lock.yaml \
+            client/src/components/ImageUpload.tsx \
+            to-do.md git.txt
+  3. git commit -m "fix(upload): suporte a HEIC via conversão para JPEG no cliente
+
+iPhones salvam fotos em HEIC; o hardening da Fase B deixou a whitelist
+do server em [jpeg, png, webp] e fotos do iPhone passaram a ser rejeitadas
+com 400. Soluciona convertendo HEIC para JPEG no navegador via heic2any
+(import dinâmico para isolar em chunk próprio — bundle principal não cresce).
+
+Inclui correções colaterais:
+- alinha limite cliente↔server: UI passa a mostrar 'máx. 5 MB' (era 10 MB,
+  desalinhado com o multer 5 MB do upload.ts).
+- catch do upload no cliente passa a logar o erro de fato (era engolido).
+
+Server intocado: whitelist por magic bytes continua estrita (jpeg/png/webp).
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1E — A.1: SSL/TLS verificado no Postgres
+════════════════════════════════════════════════════════════
+
+Vulnerabilidade #8 da auditoria original: o cliente Postgres em
+server/db.ts usava `ssl: { rejectUnauthorized: false }` em produção,
+ou seja, criptografava o tráfego mas NÃO verificava a identidade do
+servidor (man-in-the-middle teoricamente possível). Solução escolhida:
+Opção A (Pragmática) — detectar pelo hostname da DATABASE_URL.
+
+Comportamento resultante:
+  - dev local                                  → sem SSL (igual antes)
+  - prod + DATABASE_URL=*.railway.internal    → SSL desativado (rede privada do
+                                                  data center; cert self-signed
+                                                  do Railway não é verificável)
+  - prod + qualquer outro host                 → TLS com rejectUnauthorized: true
+                                                  (verificação real do cert)
+  - prod + DATABASE_URL malformada             → fail-secure (TLS verificado)
+
+Arquivos alterados:
+
+  - server/db.ts   → adicionada função resolveSsl() com 3 branches explícitas
+                      e comentário inline explicando cada caso. Lógica antiga
+                      (rejectUnauthorized: false) substituída.
+  - to-do.md       → tarefas Z.1 a Z.5 marcadas como concluídas.
+  - git.txt        → este arquivo.
+
+Comandos:
+
+  1. git status
+  2. git add server/db.ts to-do.md git.txt
+  3. git commit -m "fix(security): SSL/TLS condicional ao hostname no Postgres
+
+Substitui ssl: { rejectUnauthorized: false } fixo por lógica
+condicional baseada no hostname da DATABASE_URL:
+
+- dev local: sem SSL.
+- prod + rede interna Railway (*.railway.internal): SSL desativado;
+  tráfego trafega na rede privada do data center e o cert self-signed
+  do Railway não é verificável.
+- prod + qualquer outro host: TLS com rejectUnauthorized: true,
+  verificação completa do cert. Se um dia DATABASE_URL apontar para
+  proxy público ou outro provedor, app se torna seguro por default.
+- DATABASE_URL malformada: fail-secure (TLS verificado).
+
+Fecha vulnerabilidade #8 da auditoria original. Mantém comportamento
+operacional atual (rede interna Railway) sem dependência de cert
+externo.
+
+Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ⚠️  VALIDAÇÃO OBRIGATÓRIA PÓS-DEPLOY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Risco conhecido: o Postgres do Railway PODE estar configurado para
+exigir SSL (ssl=on forçado). Se for, ssl: false vai ser recusado e
+o app não sobe. Probabilidade baixa (Railway usa modo "prefer" por
+padrão), mas precisa ser validado.
+
+Após o git push origin main, abra o painel do Railway:
+
+  Deployments → último deploy → View Logs
+
+Procure pelas mensagens abaixo. Se aparecer qualquer uma, é incompatibilidade
+de SSL com a configuração atual do Postgres:
+
+  - "connection terminated unexpectedly"
+  - "no pg_hba.conf entry"
+  - "SSL required"
+  - "the server does not support SSL connections"
+
+ROLLBACK SE NECESSÁRIO:
+
+  git checkout main
+  git revert HEAD          → cria um novo commit que desfaz a mudança
+  git push origin main     → Railway redeploy automático
+
+Se TUDO subir normal e a aplicação responder no /login, está validado:
+o Postgres aceitou a conexão sem SSL na rede interna.
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1D — CSP FINAL (enforcement)
+════════════════════════════════════════════════════════════
+
+Após validar que a CSP em report-only não gerou violações no app real,
+trocamos para enforcement: o navegador agora BLOQUEIA recursos fora da
+whitelist (em vez de só reportar).
+
+Arquivo alterado:
+
+  - server/index.ts  → removida a flag "reportOnly: true" do helmet.
+                        Comentário atualizado para refletir enforcement.
+
+Comandos:
+
+  1. git status
+  2. git add server/index.ts to-do.md git.txt
+  3. git commit -m "feat(security): ativa CSP em modo enforcement
+
+Após validar em produção que a whitelist em report-only não gerava
+violations reais, trocamos para enforcement: o navegador passa a
+bloquear scripts, estilos, fontes, conexões e iframes fora das
+origens permitidas.
+
+Whitelist final cobre: self, data:, CloudFront (banners), R2 (fotos),
+Google Fonts (CSS + binários).
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1C — COMMIT (limpeza CSP: remove inline manus + Umami)
+════════════════════════════════════════════════════════════
+
+Mudanças aplicadas para eliminar as únicas violations encontradas
+durante o teste de CSP em report-only:
+
+Arquivos alterados:
+
+  - vite.config.ts                → vitePluginManusRuntime agora só
+                                     roda em build de dev. Em build de
+                                     produção (NODE_ENV=production), o
+                                     plugin é pulado, eliminando o
+                                     <script id="manus-runtime"> inline
+                                     gigante (50KB de runtime React duplicado).
+  - client/index.html             → removido o <script> de analytics do
+                                     Umami que apontava para URL com
+                                     placeholders Vite não substituídos
+                                     (gerava 404 em toda visita).
+  - to-do.md                      → tarefas Y.1 a Y.3 marcadas
+  - git.txt                       → este arquivo
+
+Comandos:
+
+  1. git status
+  2. git add vite.config.ts client/index.html to-do.md git.txt
+  3. git commit -m "fix(security): elimina script-src violations da CSP
+
+- vite.config.ts: torna vitePluginManusRuntime condicional ao build de dev,
+  removendo o <script id=\"manus-runtime\"> inline gigante do HTML de produção
+  (50KB de runtime React duplicado, desnecessário fora da plataforma Manus).
+
+- client/index.html: remove o <script> de analytics do Umami que apontava
+  para URL com placeholders Vite não substituídos, gerando 404 em toda visita.
+
+Resultado validado em produção: CSP em report-only deixa de reportar
+qualquer violação. Próximo commit ativa enforcement.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main && git merge ficha && git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1B — COMMIT EXTRA (limpeza pós-hardening)
+════════════════════════════════════════════════════════════
+
+Após o hardening principal, removemos código órfão de bioimpedância
+no Home.tsx que apontava para a rota /api/bioimpedancia/extrair
+(deletada na Fase D).
+
+Arquivos alterados:
+
+  - client/src/pages/Home.tsx  → removidos:
+                                  · estado extraindoBio
+                                  · função extrairDadosBioimpedancia (~43 linhas)
+                                  · chamada de extração no onUpload
+                                  · bloco JSX de loading "Lendo dados da IA…"
+                                  · import de Loader2 (não usado em mais lugar nenhum)
+  - to-do.md                   → tarefas X.1 a X.5 marcadas como concluídas
+  - git.txt                    → este arquivo
+
+Comandos para o commit:
+
+  1. git status
+
+  2. git add client/src/pages/Home.tsx to-do.md git.txt
+
+  3. git commit -m "chore: remove código órfão de bioimpedância no Home
+
+Limpeza após o hardening: o Home.tsx ainda chamava /api/bioimpedancia/extrair
+(rota deletada na Fase D do hardening). Removido o estado extraindoBio,
+a função extrairDadosBioimpedancia, o bloco JSX de loading e o import
+de Loader2 que ficou sem uso.
+
+A tabela e o upload manual da imagem de bioimpedância continuam funcionando.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+
+  4. git push origin ficha
+  5. git checkout main
+  6. git merge ficha
+  7. git push origin main
+
+
+════════════════════════════════════════════════════════════
+  PARTE 1 — O QUE FAZER AGORA (sessão de Hardening)
+════════════════════════════════════════════════════════════
+
+Tema da sessão: fechar as 9 vulnerabilidades de segurança
+identificadas na auditoria. Resultado: aplicação que era
+totalmente pública agora exige autenticação JWT, tem rate
+limit, helmet, validação de upload por magic bytes, body
+parser reduzido, logs de erro com contexto, e código morto
+removido.
+
+Arquivos alterados nesta sessão:
+
+  CRIADOS:
+  - server/scripts/gerar-hash.ts   → CLI utilitário que recebe senha pelo terminal,
+                                      mascara digitação com "*", e imprime hash
+                                      bcrypt + JWT_SECRET aleatório de 256 bits
+                                      para colar no .env.
+  - server/lib/auth.ts             → signToken() + middleware requireAuth.
+                                      Valida JWT_SECRET no boot (fail fast).
+  - server/routes/auth.ts          → POST /api/login. Compara senha com hash via
+                                      bcrypt.compare e retorna JWT (12h).
+  - client/src/lib/api.ts          → Helper apiFetch() que injeta header
+                                      Authorization e redireciona para /login
+                                      em caso de 401. Funções auxiliares:
+                                      getToken, setToken, clearToken,
+                                      isAuthenticated.
+  - client/src/pages/Login.tsx     → Tela de login (Card centralizado, campo
+                                      de senha, mensagem de erro, loading).
+
+  MODIFICADOS:
+  - server/index.ts                → helmet (CSP off por enquanto),
+                                      express-rate-limit (geral 100/15min,
+                                      login 5/15min), trust proxy 1 hop,
+                                      body parser reduzido de 20mb para 1mb,
+                                      authRouter público + requireAuth global,
+                                      imports de bioimpedancia/migrar removidos.
+  - server/routes/upload.ts        → Whitelist regex em aluno_id e tipo,
+                                      validação de magic bytes via file-type,
+                                      extensão derivada do mime real, limite
+                                      reduzido de 10MB para 5MB.
+  - server/routes/alunos.ts        → catches silenciosos viraram catch (err)
+                                      com console.error("[alunos]", err) (7).
+  - server/routes/treinos.ts       → idem com prefixo [treinos] / [treinos:tx]
+                                      para os de transação (12).
+  - server/routes/exercicios.ts    → idem com [exercicios:list/create] (2).
+  - server/routes/relatorio.ts     → idem com [relatorio] (5).
+  - client/src/App.tsx             → adicionada rota /login e wrapper
+                                      <Protected> que redireciona via Wouter
+                                      para /login se não houver token.
+  - client/src/pages/Home.tsx      → 4 fetch() trocados por apiFetch().
+  - client/src/pages/Alunos.tsx    → 5 fetch() trocados por apiFetch().
+  - client/src/pages/Relatorio.tsx → 1 fetch() trocado por apiFetch().
+  - client/src/components/ImageUpload.tsx → 1 fetch() trocado por apiFetch().
+  - package.json                   → +bcryptjs, +jsonwebtoken,
+                                      +@types/jsonwebtoken, +file-type,
+                                      +helmet, +express-rate-limit,
+                                      +script "gerar-hash".
+  - pnpm-lock.yaml                 → atualizado pelo pnpm.
+  - to-do.md                       → plano de hardening completo, todas as
+                                      tarefas marcadas como [x].
+  - git.txt                        → este arquivo.
+
+  DELETADOS:
+  - server/routes/migrar.ts        → script de migração one-shot já cumprido
+                                      (banco confirmou: 0 base64 sobrando).
+  - server/routes/bioimpedancia.ts → feature de IA esboçada e nunca montada;
+                                      será refeita com segurança no dia da
+                                      ativação (Implementation Plan separado).
+
+Comandos para executar no terminal (um por um):
+
+  1. git status
+     → Confira que TODOS os arquivos acima aparecem como modified/new/deleted.
+
+  2. git add server/scripts/gerar-hash.ts \
+            server/lib/auth.ts \
+            server/routes/auth.ts \
+            server/routes/upload.ts \
+            server/routes/alunos.ts \
+            server/routes/treinos.ts \
+            server/routes/exercicios.ts \
+            server/routes/relatorio.ts \
+            server/index.ts \
+            client/src/lib/api.ts \
+            client/src/pages/Login.tsx \
+            client/src/pages/Home.tsx \
+            client/src/pages/Alunos.tsx \
+            client/src/pages/Relatorio.tsx \
+            client/src/components/ImageUpload.tsx \
+            client/src/App.tsx \
+            package.json \
+            pnpm-lock.yaml \
+            to-do.md \
+            git.txt
+
+     Observação: o git add aceita múltiplos arquivos separados por espaço.
+     A barra invertida no fim de cada linha (\) é só para quebrar o comando
+     em várias linhas e ficar legível — você pode digitar tudo numa linha só.
+
+  3. git rm server/routes/migrar.ts server/routes/bioimpedancia.ts
+     → Marca os arquivos deletados para o commit.
+
+  4. git status
+     → Confira: tudo deve estar em "Changes to be committed".
+
+  5. git commit -m "feat(security): hardening completo — auth JWT, helmet, rate limit, upload seguro
+
+Fases concluídas (planejadas em to-do.md):
+
+A — Autenticação (vulnerabilidade #1, crítica)
+- Senha única + bcrypt + JWT (12h) — sem tabela de usuários
+- Script CLI 'pnpm gerar-hash' gera hash + secret localmente
+- Middleware requireAuth aplicado globalmente em /api (exceto /api/login)
+- apiFetch centraliza injeção de Authorization e redirect em 401 no client
+- Tela /login + wrapper <Protected> nas rotas existentes
+
+B — Upload seguro (vulnerabilidade #2)
+- Sanitização de aluno_id e tipo via regex /^[a-zA-Z0-9_-]+\$/
+- Validação real do conteúdo via file-type (magic bytes)
+- Whitelist: image/jpeg, image/png, image/webp
+- Extensão derivada do mime detectado (não do originalname)
+- Limite reduzido de 10MB para 5MB
+
+C — Hardening genérico
+- helmet() com CSP desativada (configuração custom fica como TODO)
+- trust proxy 1 (necessário no Railway/load balancer)
+- Rate limit geral 100/15min, login 5/15min (anti-brute-force)
+- express.json reduzido de 20mb para 1mb
+- 28 catches passaram a logar com prefixo de contexto
+
+D — Limpeza
+- server/routes/migrar.ts deletado (migração base64 já cumprida)
+- server/routes/bioimpedancia.ts deletado (será refeito com segurança)
+- imports não utilizados removidos do server/index.ts
+
+Pendências reconhecidas (não bloqueadoras):
+- Home.tsx ainda contém código órfão de bioimpedância (chama rota deletada).
+  Implementation Plan separado redigido, aguardando aprovação para executar.
+- CSP do helmet a configurar quando os domínios externos forem mapeados.
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+
+  6. git push origin ficha
+     → Envia para o GitHub na branch ficha (sem deploy ainda).
+
+  --- ANTES de promover para main e deploy ---
+
+  ⚠️  ATENÇÃO: ler a PARTE 3 deste arquivo. Há variáveis de ambiente
+      novas (AUTH_PASSWORD_HASH e JWT_SECRET) que PRECISAM estar
+      configuradas no Railway antes do deploy, senão o servidor não
+      sobe e o app fica fora do ar.
+
+  --- Quando o Railway estiver com as variáveis configuradas ---
+
+  7. git checkout main
+  8. git merge ficha
+  9. git push origin main
+     → Railway faz deploy automático.
+
+ 10. Após deploy, abra a URL pública do Railway e confirme:
+     → / redireciona para /login automaticamente
+     → senha incorreta mostra "senha incorreta"
+     → senha correta abre a lista de alunos
+
+
+════════════════════════════════════════════════════════════
+  PARTE 2 — GUIA PERMANENTE DE GIT
+  (leia uma vez, guarde para sempre)
+════════════════════════════════════════════════════════════
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ANALOGIA GERAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Pensa no Git como uma linha do tempo do seu projeto.
+Cada commit é uma foto do estado do código naquele momento.
+Você pode voltar para qualquer foto quando quiser.
+
+O GitHub é onde você guarda essas fotos na nuvem — seguro,
+acessível de qualquer computador.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  git status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  O QUE FAZ:
+    Mostra o estado atual dos seus arquivos — quais foram
+    modificados, quais estão prontos para commit, quais
+    o Git nem conhece ainda.
+
+  QUANDO USAR:
+    Sempre. É o primeiro comando que você roda antes de
+    qualquer outra coisa. É inofensivo — só lê, não muda nada.
+
+  SINTAXE:
+    git status
+
+  LEITURA DA SAÍDA:
+    "Changes not staged"      → arquivo modificado, ainda não adicionado
+    "Changes to be committed" → arquivo adicionado, pronto para commit
+    "Untracked files"         → arquivo novo que o Git ainda não conhece
+    "Deleted"                 → arquivo apagado (use git rm para confirmar)
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  git add
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  O QUE FAZ:
+    "Seleciona" arquivos para entrar no próximo commit.
+    É como colocar itens na sacola antes de fechar o pedido.
+
+  SINTAXE — adicionar arquivo específico:
+    git add nome-do-arquivo.tsx
+
+  SINTAXE — adicionar múltiplos arquivos:
+    git add arquivo1.tsx arquivo2.ts
+
+  DICA:
+    Prefira sempre adicionar arquivos pelo nome. É mais seguro
+    e você aprende quais arquivos você tocou.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  git rm
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  O QUE FAZ:
+    Avisa o Git de que um arquivo foi deletado e essa deleção
+    deve entrar no próximo commit. Diferente do rm comum do
+    sistema, o git rm registra a remoção no histórico.
+
+  SINTAXE:
+    git rm caminho/do/arquivo.ts
+
+  QUANDO USAR:
+    Quando você (ou o Claude) deletou um arquivo e quer que
+    essa deleção fique gravada no commit. Equivalente a fazer
+    git add num arquivo modificado, mas para arquivos apagados.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  git restore
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  O QUE FAZ:
+    Joga fora as mudanças NÃO COMMITADAS de um arquivo e
+    volta ele para o estado do último commit.
+
+  ANALOGIA:
+    É o "fechar sem salvar" do Git. Imagina que você
+    rabiscou em cima de uma foto revelada — o Git tem o
+    negativo guardado e te revela a foto de novo, limpinha.
+
+  SINTAXE — restaurar um arquivo específico (recomendado):
+    git restore caminho/do/arquivo.tsx
+
+  SINTAXE — restaurar TUDO que está modificado:
+    git restore .
+
+    ⚠️  Cuidado com o "." — ele joga fora as mudanças de
+    TODOS os arquivos modificados de uma vez. Prefira
+    sempre restaurar arquivo por arquivo até ter certeza
+    do que está fazendo.
+
+  QUANDO USAR:
+    - Bagunçou um arquivo e quer voltar pro último commit
+    - Experimentou algo que não deu certo e quer desfazer
+    - Salvou por engano e precisa "rebobinar"
+
+  ⚠️  ATENÇÃO — É IRREVERSÍVEL:
+    Mudanças não commitadas SOMEM. Não tem lixeira, não
+    tem CMD+Z. Antes de rodar, SEMPRE faça:
+
+      1. git status              → veja o que está modificado
+      2. git diff <arquivo>      → veja o que vai ser perdido
+
+    Se houver mudança que você quer manter, NÃO use restore
+    — copie o conteúdo pra outro lugar antes.
+
+  DIFERENÇA DE git checkout:
+    Antes do git restore existir, usava-se "git checkout
+    -- arquivo.tsx" pra mesma coisa. Ainda funciona, mas
+    git restore é a forma moderna e mais segura (o
+    checkout faz outras coisas além disso e era fácil
+    confundir).
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  git commit
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  O QUE FAZ:
+    Tira a "foto" dos arquivos que você selecionou com git add.
+
+  SINTAXE:
+    git commit -m "descrição do que foi feito"
+
+  BOAS MENSAGENS DE COMMIT:
+    ✓ "feat: adiciona upload de imagens via R2"
+    ✓ "fix: corrige bug no auto-save prematuro"
+    ✓ "feat(security): hardening completo"
+    ✗ "mudanças"  ✗ "fix"  ✗ "atualizei coisas"
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  git push
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  O QUE FAZ:
+    Envia os commits do seu computador para o GitHub.
+
+  SINTAXE:
+    git push origin ficha      → branch atual de desenvolvimento
+    git push origin main       → branch de produção
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  git pull
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  O QUE FAZ:
+    Baixa do GitHub mudanças que outros (ou outro computador
+    seu) tenham feito. Sincroniza sua cópia local.
+
+  SINTAXE:
+    git pull origin ficha
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  RESUMO RÁPIDO — COLA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  git status              → veja o que mudou
+  git diff <arquivo>      → veja o que mudou linha a linha
+  git add <arquivo>       → selecione o arquivo
+  git rm <arquivo>        → registre uma deleção
+  git restore <arquivo>   → descarte mudanças não commitadas
+  git commit -m "msg"     → salve a foto
+  git push origin ficha   → envie para o GitHub
+  git pull origin ficha   → baixe do GitHub
+  git log --oneline       → veja o histórico
+  git checkout -b <nome>  → crie uma branch nova
+
+
+════════════════════════════════════════════════════════════
+  PARTE 3 — DEPLOY NO RAILWAY (variáveis de ambiente novas)
+════════════════════════════════════════════════════════════
+
+⚠️  CRÍTICO: NÃO faça push para main antes de configurar essas
+    variáveis no Railway. Sem elas o servidor explode no boot
+    com mensagem "JWT_SECRET não definido" / "AUTH_PASSWORD_HASH
+    não definido" e a aplicação fica fora do ar até você
+    configurar.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  VARIÁVEIS QUE PRECISAM ESTAR NO RAILWAY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  JÁ CONFIGURADAS (não precisa mexer):
+    DATABASE_URL          → string de conexão do PostgreSQL
+    NODE_ENV              → "production"
+    PORT                  → definido automaticamente pelo Railway
+    R2_ENDPOINT           → endpoint do Cloudflare R2
+    R2_ACCESS_KEY_ID      → credencial R2
+    R2_SECRET_ACCESS_KEY  → credencial R2
+    R2_BUCKET_NAME        → bucket R2
+    R2_PUBLIC_URL         → URL pública das imagens
+
+  NOVAS — A CONFIGURAR ANTES DO DEPLOY:
+    AUTH_PASSWORD_HASH    → hash bcrypt da sua senha
+    JWT_SECRET            → segredo aleatório de 256 bits que
+                             assina os tokens JWT
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASSO 1 — Gerar valores PARA PRODUÇÃO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Recomendação de segurança importante:
+
+  - AUTH_PASSWORD_HASH em prod PODE ser o mesmo do seu .env local
+    (é a sua senha pessoal — não muda por ambiente).
+
+  - JWT_SECRET em prod DEVE ser DIFERENTE do dev. Razão:
+    se um dia o JWT_SECRET de dev vazar (ex: você compartilha o
+    .env por engano), atacante poderia forjar tokens válidos em
+    PRODUÇÃO. Mantendo separado, vazamento em dev fica isolado.
+
+  Para gerar credenciais para produção:
+
+    pnpm gerar-hash
+
+  Quando ele pedir senha, digite a MESMA senha que você usa em dev
+  (ou uma diferente, se quiser separar acessos). O hash vai sair
+  diferente do dev (bcrypt usa salt aleatório), mas valida a mesma
+  senha — pode usar qualquer um dos dois.
+
+  COPIE o JWT_SECRET impresso. Esse SIM precisa ser diferente.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASSO 2 — Adicionar as variáveis no Railway
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  PELA INTERFACE WEB (mais simples):
+
+  1. Abra https://railway.app e entre na sua conta
+  2. Selecione o projeto avaliacao_fisica
+  3. Clique no serviço da aplicação (não o do PostgreSQL)
+  4. Vá na aba "Variables"
+  5. Clique em "+ New Variable"
+  6. Adicione:
+       Nome:  AUTH_PASSWORD_HASH
+       Valor: $2a$12$....(o hash impresso pelo gerar-hash)....
+
+       ⚠️  ARMADILHA COMUM: o output do gerar-hash imprime a linha
+           inteira no formato "AUTH_PASSWORD_HASH=$2a$12$...", mas
+           no Railway o campo "Value" recebe APENAS O VALOR — não
+           inclua o nome nem o sinal de igual. Ou seja, cole somente
+           o que vem DEPOIS do "=". O mesmo vale para JWT_SECRET.
+
+  7. Clique em "Add"
+  8. Repita para a JWT_SECRET com o valor impresso pelo script
+  9. O Railway pergunta se quer "redeploy" — responda SIM apenas
+     se já tiver feito git push origin main. Caso contrário,
+     escolha "Save without deploy" e faça o push depois.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASSO 3 — Verificar o deploy
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Após o git push origin main e o Railway concluir o deploy:
+
+  1. Abra a URL pública da aplicação no navegador
+  2. Confirme que / redireciona automaticamente para /login
+  3. Faça login com sua senha — deve abrir a tela de Alunos
+  4. Tente uma senha errada — deve mostrar "senha incorreta"
+
+  Se algo der errado (tela em branco, "Application failed to
+  respond"), abra o painel do Railway → Deployments → último
+  deploy → clique em "View Logs". Procure por:
+
+    - "JWT_SECRET não definido"      → falta a variável JWT_SECRET
+    - "AUTH_PASSWORD_HASH não..."    → falta a variável AUTH_PASSWORD_HASH
+    - Outros erros                   → me avise na próxima sessão
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PASSO 4 — Como ROTACIONAR as credenciais (futuro)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Se em algum momento você suspeitar de vazamento (ex: alguém
+  viu sua senha sobre o ombro, você commitou o .env por engano):
+
+  TROCAR A SENHA:
+    1. Rode pnpm gerar-hash localmente com a senha NOVA
+    2. Atualize AUTH_PASSWORD_HASH no Railway com o hash novo
+    3. Atualize AUTH_PASSWORD_HASH no .env local também
+    4. Reinicie o servidor (Railway faz automaticamente)
+
+  TROCAR O JWT_SECRET (invalida TODOS os tokens em uso):
+    1. Rode pnpm gerar-hash apenas para gerar um JWT_SECRET novo
+       (pode ignorar o hash da senha se não estiver trocando ela)
+    2. Atualize JWT_SECRET no Railway
+    3. Todos os usuários logados serão deslogados na próxima ação
+       e precisarão fazer login de novo. Isso é proposital — é
+       o efeito de "expulsar todo mundo" que você quer em caso
+       de comprometimento.
+
+
+============================================================
