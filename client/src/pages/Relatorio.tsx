@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import {
   ArrowLeft, Printer, TrendingUp, TrendingDown, Minus,
-  Ruler, Scale, Dumbbell, Activity, User, Calendar, Target,
+  Ruler, Scale, Dumbbell, Activity, User, Calendar,
   Heart, FileText, Camera, Move,
 } from "lucide-react";
 import {
@@ -204,10 +204,9 @@ export default function Relatorio() {
   }, []);
 
   // ── Student info ─────────────────────────────────
-  const nome = (formData.nome as string) || (formData.header_nome as string) || "Aluno";
+  const nome = (formData.header_nome as string) || (formData.nome as string) || "Aluno";
   const idade = formData.idade as string || "";
   const sexo = formData.genero as string || "";
-  const objetivo = formData.objetivo as string || "";
   const treinador = formData.header_treinador as string || "";
   const dataAval = formData.header_data as string || formData.data_avaliacao as string || "";
   const dataReaval = formData.data_reavaliacao as string || "";
@@ -320,37 +319,28 @@ export default function Relatorio() {
       <header className="relative overflow-hidden">
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${HERO_BANNER})` }} />
         <div className="absolute inset-0 bg-gradient-to-r from-[#0A3D47]/93 via-[#0A6B7C]/82 to-[#D4622B]/30" />
-        <div className="relative container py-10 md:py-12">
+        <div className="relative container py-10 md:py-14">
           <div className="flex items-start justify-between">
             <div>
-              <p className="font-mono text-[10px] text-white/40 uppercase tracking-[0.3em] mb-1.5">Prontuário Esportivo</p>
+              <p className="font-mono text-xs text-white/50 uppercase tracking-[0.3em] mb-2">Prontuário Esportivo</p>
               <h1 className="font-display font-bold text-3xl md:text-4xl text-white tracking-tight leading-tight">
                 Relatório de<br /><span className="text-orange-light">Progresso</span>
               </h1>
-            </div>
-            <div className="no-print flex flex-col gap-2">
-              <button onClick={() => window.history.back()} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2.5 rounded-lg transition-colors text-sm font-display font-semibold border border-white/20">
-                <ArrowLeft size={16} /> Voltar
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white px-4 py-2.5 rounded-lg transition-colors text-sm font-display font-semibold border border-white/20"
-              >
-                <Printer size={16} /> Imprimir
-              </button>
+              <p className="mt-3 font-body text-sm text-white/60 max-w-md">
+
+              </p>
             </div>
           </div>
 
           {/* Student profile bar */}
-          <div className="mt-8 grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { icon: <User size={14} />, label: "Aluno", value: nome },
               { icon: <Calendar size={14} />, label: "Idade / Sexo", value: [idade && `${idade} anos`, sexo].filter(Boolean).join(" · ") || "—" },
-              { icon: <Target size={14} />, label: "Objetivo", value: objetivo || "—" },
               { icon: <Activity size={14} />, label: "Treinador", value: treinador || "—" },
               { icon: <Calendar size={14} />, label: "Data", value: dataAval || "—" },
             ].map((item) => (
-              <div key={item.label} className="bg-white/8 backdrop-blur-sm rounded-lg px-3.5 py-2.5 border border-white/10">
+              <div key={item.label} className="bg-white/8 backdrop-blur-sm rounded-lg px-3.5 py-3 border border-white/10">
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className="text-white/35">{item.icon}</span>
                   <span className="text-[9px] font-mono text-white/35 uppercase tracking-wider">{item.label}</span>
@@ -361,6 +351,25 @@ export default function Relatorio() {
           </div>
         </div>
       </header>
+
+      {/* ─── Toolbar ─── */}
+      <div className="no-print sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b border-border shadow-sm">
+        <div className="container py-2.5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs font-mono text-foreground/40">
+            <div className="w-2 h-2 rounded-full bg-teal" />
+            <span>Relatório de progresso</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => window.history.back()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-foreground/60 hover:text-primary px-3 py-1.5 rounded-md hover:bg-primary/5 transition-colors">
+              <ArrowLeft size={13} /> Voltar
+            </button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-orange hover:text-orange/80 px-3 py-1.5 rounded-md hover:bg-orange/5 transition-colors">
+              <Printer size={13} /> Imprimir
+            </button>
+          </div>
+        </div>
+      </div>
 
       <main className="container py-8 space-y-6">
 
