@@ -10,10 +10,9 @@ import { Link } from "wouter";
 import {
   User, Heart, Ruler, Activity, Move, Dumbbell, FileText,
   ChevronDown, ChevronUp, ClipboardList, Scale, Droplets,
-  Camera, Trash2, BarChart3, Download, Upload, FilePlus,
+  Camera, BarChart3, Download, Upload, FilePlus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmModal } from "@/components/ConfirmModal";
 import { ImageUpload } from "@/components/ImageUpload";
 import { getPesoAtual } from "@shared/const";
 import { salvarRascunho, carregarRascunho, limparRascunho } from "@/lib/storage";
@@ -541,7 +540,6 @@ export default function Home() {
     if (rascunho) return rascunho as FormData;
     return { header_treinador: "Julio Carvalho" };
   });
-  const [confirmLimpar, setConfirmLimpar] = useState(false);
   const inputImportRef = useRef<HTMLInputElement>(null);
 
   // Salva o rascunho a cada mudança do formData. Throttle leve via setTimeout
@@ -734,11 +732,6 @@ export default function Home() {
     }
   };
 
-  const handleClearAll = () => {
-    setFormData({});
-    toast.success("Todos os dados foram limpos.");
-  };
-
   const dateHeaders = ["Medida", "Aval. 1", "Aval. 2", "Aval. 3", "Aval. 4", "Aval. 5", "Aval. 6"];
 
   return (
@@ -757,11 +750,6 @@ export default function Home() {
               <p className="mt-3 font-body text-sm text-white/60 max-w-md">
                 
               </p>
-            </div>
-            <div className="no-print pdf-hide flex flex-col gap-2">
-              <Link href="/relatorio" className="flex items-center gap-2 bg-green/15 hover:bg-green/25 backdrop-blur-sm text-green/70 px-4 py-2.5 rounded-lg transition-colors text-sm font-display font-semibold border border-green/40">
-                <BarChart3 size={16} /> Relatório
-              </Link>
             </div>
           </div>
 
@@ -802,6 +790,10 @@ export default function Home() {
             <span>Rascunho local · <span className="text-orange/80">Não esqueça de exportar o PDF</span></span>
           </div>
           <div className="flex items-center gap-1.5">
+            <Link href="/relatorio" className="flex items-center gap-1.5 text-xs font-display font-semibold text-green hover:text-green/80 px-3 py-1.5 rounded-md hover:bg-green/5 transition-colors">
+              <BarChart3 size={13} /> Relatório
+            </Link>
+            <div className="w-px h-4 bg-border mx-1" />
             <button onClick={handleNovaFicha} className="flex items-center gap-1.5 text-xs font-display font-semibold text-foreground/60 hover:text-primary px-3 py-1.5 rounded-md hover:bg-primary/5 transition-colors">
               <FilePlus size={13} /> Nova Ficha
             </button>
@@ -810,10 +802,6 @@ export default function Home() {
             </button>
             <button onClick={handleExportarPDF} className="flex items-center gap-1.5 text-xs font-display font-semibold text-orange hover:text-orange/80 px-3 py-1.5 rounded-md hover:bg-orange/5 transition-colors">
               <Download size={13} /> Exportar PDF
-            </button>
-
-            <button onClick={() => setConfirmLimpar(true)} className="flex items-center gap-1.5 text-xs font-display font-semibold text-destructive/60 hover:text-destructive px-3 py-1.5 rounded-md hover:bg-destructive/5 transition-colors">
-              <Trash2 size={13} /> Limpar
             </button>
           </div>
         </div>
@@ -1612,16 +1600,6 @@ export default function Home() {
           </div>
         </Section>
       </main>
-
-      {confirmLimpar && (
-        <ConfirmModal
-          title="Limpar todos os dados?"
-          description="Todos os campos da ficha serão apagados. Esta ação não pode ser desfeita."
-          confirmLabel="Limpar tudo"
-          onConfirm={() => { setConfirmLimpar(false); handleClearAll(); }}
-          onCancel={() => setConfirmLimpar(false)}
-        />
-      )}
 
       {/* ─── Footer ─── */}
       <footer className="no-print bg-foreground/5 border-t border-border py-6 mt-8">
