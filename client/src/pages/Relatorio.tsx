@@ -9,7 +9,7 @@ import { Link } from "wouter";
 import {
   ArrowLeft, Printer, TrendingUp, TrendingDown, Minus,
   Ruler, Scale, Dumbbell, Activity, User, Calendar,
-  Heart, FileText, Camera, Move,
+  Heart, FileText, Camera, Move, ClipboardList,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -360,12 +360,12 @@ export default function Relatorio() {
             <span>Relatório de progresso</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => window.history.back()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-foreground/60 hover:text-primary px-3 py-1.5 rounded-md hover:bg-primary/5 transition-colors">
-              <ArrowLeft size={13} /> Voltar
-            </button>
-            <div className="w-px h-4 bg-border mx-1" />
             <button onClick={() => window.print()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-orange hover:text-orange/80 px-3 py-1.5 rounded-md hover:bg-orange/5 transition-colors">
               <Printer size={13} /> Imprimir
+            </button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <button onClick={() => window.history.back()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-teal hover:text-teal/80 px-3 py-1.5 rounded-md hover:bg-teal/5 transition-colors">
+              <ClipboardList size={13} /> Ficha
             </button>
           </div>
         </div>

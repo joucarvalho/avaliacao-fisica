@@ -10,7 +10,7 @@ import { useLocation } from "wouter";
 import {
   User, Heart, Ruler, Activity, Move, Dumbbell, FileText,
   ChevronDown, ChevronUp, ClipboardList, Scale, Droplets,
-  Camera, BarChart3, Download, Upload, FilePlus,
+  Camera, BarChart3, FileDown, FileInput, FilePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -821,19 +821,19 @@ export default function Home() {
             <span>Rascunho local · <span className="text-orange/80">Não esqueça de exportar o PDF</span></span>
           </div>
           <div className="flex items-center gap-1.5">
-            <a href="/relatorio" onClick={abrirRelatorio} onMouseEnter={() => preloadRelatorio()} onFocus={() => preloadRelatorio()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-green hover:text-green/80 px-3 py-1.5 rounded-md hover:bg-green/5 transition-colors">
-              <BarChart3 size={13} /> Relatório
-            </a>
-            <div className="w-px h-4 bg-border mx-1" />
             <button onClick={handleNovaFicha} className="flex items-center gap-1.5 text-xs font-display font-semibold text-foreground/60 hover:text-primary px-3 py-1.5 rounded-md hover:bg-primary/5 transition-colors">
               <FilePlus size={13} /> Nova Ficha
             </button>
             <button onClick={handleImportarClick} className="flex items-center gap-1.5 text-xs font-display font-semibold text-teal hover:text-teal/80 px-3 py-1.5 rounded-md hover:bg-teal/5 transition-colors">
-              <Upload size={13} /> Importar PDF
+              <FileInput size={13} /> Importar PDF
             </button>
             <button onClick={handleExportarPDF} className="flex items-center gap-1.5 text-xs font-display font-semibold text-orange hover:text-orange/80 px-3 py-1.5 rounded-md hover:bg-orange/5 transition-colors">
-              <Download size={13} /> Exportar PDF
+              <FileDown size={13} /> Exportar PDF
             </button>
+            <div className="w-px h-4 bg-border mx-1" />
+            <a href="/relatorio" onClick={abrirRelatorio} onMouseEnter={() => preloadRelatorio()} onFocus={() => preloadRelatorio()} className="flex items-center gap-1.5 text-xs font-display font-semibold text-green hover:text-green/80 px-3 py-1.5 rounded-md hover:bg-green/5 transition-colors">
+              <BarChart3 size={13} /> Relatório
+            </a>
           </div>
         </div>
         <input
