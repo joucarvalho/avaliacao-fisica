@@ -719,8 +719,8 @@ export default function Relatorio() {
               <ReportSection title="Avaliação Postural" icon={<Camera size={17} />} accent="green">
                 <div className={`grid gap-4 ${fotos.length <= 2 ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4 print:grid-cols-4"}`}>
                   {fotos.map((f) => (
-                    <div key={f.key} className="relative rounded-lg overflow-hidden border border-green/15 aspect-[3/4] bg-green/5">
-                      <img src={formData[f.key] as string} alt={f.label} className="w-full h-full object-contain" />
+                    <div key={f.key} className="relative rounded-xl overflow-hidden border border-border aspect-[9/16] bg-muted">
+                      <img src={formData[f.key] as string} alt={f.label} className="w-full h-full object-cover" />
                       <span className="absolute bottom-2 left-2 bg-black/55 text-white text-[10px] font-mono px-2 py-0.5 rounded">{f.label}</span>
                     </div>
                   ))}
