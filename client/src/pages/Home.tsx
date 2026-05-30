@@ -1078,7 +1078,7 @@ export default function Home() {
         </Section>
 
         {/* ─── III. Anamnese Comportamental ─── */}
-        <Section title="Anamnese Comportamental e Estilo de Vida" icon={<Droplets size={18} />} color="neutral" sectionNumber="III">
+        <Section title="Anamnese Comportamental e Estilo de Vida" icon={<Droplets size={18} />} color="neutral" sectionNumber="III" pdfJoinPrev>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <ScaleField label="Nível de Estresse (1-10)" value={formData.estresse as number} onChange={(v) => updateField("estresse", v)} />
             <ScaleField label="Qualidade do Sono (1-10)" value={formData.sono_qualidade as number} onChange={(v) => updateField("sono_qualidade", v)} />
@@ -1092,7 +1092,6 @@ export default function Home() {
             />
             <Field label="Hidratação (Litros de água/dia)" mono value={formData.hidratacao as string} onChange={(v) => updateField("hidratacao", v)} placeholder="Ex: 2L" />
             <LinesField label="Experiência Prévia com Exercícios (Modalidades, tempo, preferências)" lines={2} value={formData.experiencia as string} onChange={(v) => updateField("experiencia", v)} />
-            <LinesField label="Barreiras para o Exercício (Tempo, motivação, dor)" lines={2} value={formData.barreiras as string} onChange={(v) => updateField("barreiras", v)} />
             <LinesField label="Hábitos Alimentares (Descrição breve, restrições)" lines={3} value={formData.alimentacao as string} onChange={(v) => updateField("alimentacao", v)} />
           </div>
         </Section>
