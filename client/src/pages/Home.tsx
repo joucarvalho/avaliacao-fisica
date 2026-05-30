@@ -82,17 +82,18 @@ function Section({ title, icon, color, children, sectionNumber, defaultOpen = tr
 
 // ─── Objetivos pré-definidos ──────────────────────────────────
 const OBJECTIVES = ["Hipertrofia", "Recomposição Corporal", "Emagrecimento", "Manutenção/Saúde"];
+const ACTIVITY_LEVELS = ["Sedentário", "Levemente Ativo", "Moderadamente Ativo", "Muito Ativo"];
 
 // ─── Tag Input (campo com autocomplete e seleção por tags) ────
-function TagInput({ label, wide = false, values, onChange }: {
-  label: string; wide?: boolean; values: string[]; onChange: (v: string[]) => void;
+function TagInput({ label, wide = false, values, onChange, options = OBJECTIVES }: {
+  label: string; wide?: boolean; values: string[]; onChange: (v: string[]) => void; options?: string[];
 }) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
   const [dropRect, setDropRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filtered = OBJECTIVES.filter(
+  const filtered = options.filter(
     (o) => !values.includes(o) && o.toLowerCase().includes(input.toLowerCase()),
   );
 
@@ -640,6 +641,10 @@ export default function Home() {
       if (typeof rascunho.objetivo === "string") {
         rascunho.objetivo = rascunho.objetivo ? [rascunho.objetivo as string] : [];
       }
+      // Retrocompatibilidade: atividade era string em fichas antigas → normaliza para array
+      if (typeof rascunho.atividade === "string") {
+        rascunho.atividade = rascunho.atividade ? [rascunho.atividade as string] : [];
+      }
       return rascunho as FormData;
     }
     return { header_treinador: "Julio Carvalho" };
@@ -1064,7 +1069,12 @@ export default function Home() {
             <ScaleField label="Qualidade do Sono (1-10)" value={formData.sono_qualidade as number} onChange={(v) => updateField("sono_qualidade", v)} />
             <Field label="Horas de Sono por Noite" mono value={formData.sono_horas as string} onChange={(v) => updateField("sono_horas", v)} placeholder="Ex: 7h" />
             <Field label="Rotina de Trabalho (Sedentário / Ativo / Horas sentado)" value={formData.rotina as string} onChange={(v) => updateField("rotina", v)} />
-            <Field label="Nível de Atividade Física Atual" value={formData.atividade as string} onChange={(v) => updateField("atividade", v)} placeholder="Sedentário, Leve, Moderado, Intenso" />
+            <TagInput
+              label="Nível de Atividade Física Atual"
+              options={ACTIVITY_LEVELS}
+              values={(Array.isArray(formData.atividade) ? formData.atividade : []) as string[]}
+              onChange={(v) => setFormData((prev) => ({ ...prev, atividade: v }))}
+            />
             <Field label="Hidratação (Litros de água/dia)" mono value={formData.hidratacao as string} onChange={(v) => updateField("hidratacao", v)} placeholder="Ex: 2L" />
             <LinesField label="Experiência Prévia com Exercícios (Modalidades, tempo, preferências)" lines={2} value={formData.experiencia as string} onChange={(v) => updateField("experiencia", v)} />
             <LinesField label="Barreiras para o Exercício (Tempo, motivação, dor)" lines={2} value={formData.barreiras as string} onChange={(v) => updateField("barreiras", v)} />
