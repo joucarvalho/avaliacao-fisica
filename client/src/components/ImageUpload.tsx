@@ -170,11 +170,11 @@ export function ImageUpload({
 
   if (initialUrl) {
     return (
-      <div className="relative w-full h-full min-h-[160px]">
+      <div className="relative w-full h-full min-h-[160px] rounded-xl border border-border bg-muted overflow-hidden">
         <img
           src={initialUrl}
           alt={label}
-          className="w-full h-full object-contain rounded-lg"
+          className="w-full h-full object-cover"
         />
         <button
           onClick={onRemove}
@@ -189,7 +189,7 @@ export function ImageUpload({
 
   return (
     <label
-      className={`print:hidden flex flex-col items-center justify-center gap-2 w-full min-h-[160px] rounded-lg border-2 border-dashed cursor-pointer transition-colors ${dragging ? c.borderDrag : `${c.border} ${c.bg}`}`}
+      className={`print:hidden flex flex-col items-center justify-center gap-2 w-full h-full min-h-[160px] rounded-lg border-2 border-dashed cursor-pointer transition-colors ${dragging ? c.borderDrag : `${c.border} ${c.bg}`}`}
       onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
       onDragLeave={() => setDragging(false)}
       onDrop={(e) => {

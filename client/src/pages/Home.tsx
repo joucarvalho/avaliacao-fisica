@@ -1322,7 +1322,7 @@ export default function Home() {
                 { label: "Lateral Direita", key: "foto_lateral_dir" },
                 { label: "Lateral Esquerda", key: "foto_lateral_esq" },
               ].map((view) => (
-                <div key={view.key} className="aspect-[3/4] print:aspect-[2/3]">
+                <div key={view.key} className="aspect-[9/16]">
                   <ImageUpload
                     label={view.label}
                     icon={<Camera size={22} className="text-green/40" />}
