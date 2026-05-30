@@ -214,6 +214,33 @@ async function colocarGrupoNaPagina(
 }
 
 /**
+ * Recorta os N primeiros pixels (topo) de uma imagem JPEG codificada em dataUrl.
+ * ratio = fração da altura a manter (0–1). Se ratio >= 1 devolve o dataUrl original.
+ *
+ * Por que existe: quando heroAltFinal < heroAltNatural, entregar a imagem original ao
+ * pdf.addImage faz o jsPDF comprimir verticalmente (texto achatado). Ao recortar antes,
+ * a imagem já tem a proporção exata de (larguraDisponivel × heroAltFinal) → sem distorção.
+ */
+function recortarImagemTopo(dataUrl: string, ratio: number): Promise<string> {
+  if (ratio >= 1) return Promise.resolve(dataUrl);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const cropH = Math.round(img.height * ratio);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = cropH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { resolve(dataUrl); return; }
+      ctx.drawImage(img, 0, 0, img.width, cropH, 0, 0, img.width, cropH);
+      resolve(canvas.toDataURL("image/jpeg", 0.92));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+/**
  * Dispara o download do blob pelo navegador.
  */
 function baixarBlob(blob: Blob, nome: string): void {
@@ -248,10 +275,18 @@ export async function exportarPDF(
   const larguraDisponivel = A4_LARGURA_MM - MARGEM_MM * 2;
   const GAP_MM = 3;
 
+  // Mede a altura que o grupo 0 (Seções I+II+III) vai ocupar no PDF usando só o
+  // DOM — sem canvas. Isso permite calcular quanto espaço sobra para o hero na
+  // página 1, mantendo tudo junto sem extrapolar para a página 2.
+  const grupo0AltMM = grupos.length > 0
+    ? grupos[0].reduce((soma, secao) => {
+        const ratio = secao.offsetWidth > 0 ? secao.offsetHeight / secao.offsetWidth : 0;
+        return soma + ratio * larguraDisponivel + GAP_MM;
+      }, 0)
+    : 0;
+
   let yAtual = MARGEM_MM;
   if (hero) {
-    // overflow:hidden cliparia o conteúdo dos cards. paddingBottom garante que o
-    // offsetHeight do hero cresça fisicamente (minHeight é no-op se o conteúdo já cabe).
     const heroSavedOverflow = hero.style.overflow;
     const heroSavedPaddingBottom = hero.style.paddingBottom;
     hero.style.overflow = "visible";
@@ -259,15 +294,17 @@ export async function exportarPDF(
 
     try {
       const heroCaptura = await capturarElemento(hero);
-      const heroAltMM = (heroCaptura.altura / heroCaptura.largura) * larguraDisponivel;
-      const heroAltFinal = Math.min(heroAltMM, A4_ALTURA_MM - MARGEM_MM * 2);
-      pdf.addImage(heroCaptura.dataUrl, "JPEG", MARGEM_MM, yAtual, larguraDisponivel, heroAltFinal);
+      const heroAltNatural = (heroCaptura.altura / heroCaptura.largura) * larguraDisponivel;
+      // Espaço disponível na página 1 após as seções do grupo 0 + margens + gap.
+      const espacoHero = (A4_ALTURA_MM - MARGEM_MM * 2) - grupo0AltMM - GAP_MM;
+      const heroAltFinal = Math.min(heroAltNatural, Math.max(espacoHero, 20));
+      // Recorta o topo da imagem para manter proporção natural (sem achatamento).
+      const heroDataUrl = await recortarImagemTopo(heroCaptura.dataUrl, heroAltFinal / heroAltNatural);
+      pdf.addImage(heroDataUrl, "JPEG", MARGEM_MM, yAtual, larguraDisponivel, heroAltFinal);
       yAtual += heroAltFinal + GAP_MM;
     } catch {
-      // Fallback: se a captura do hero falhar (ex: cor CSS não suportada),
-      // desenha um retângulo sólido na cor teal (#0A6B7C) no lugar da imagem.
-      const heroAltFallbackMM = 40;
-      pdf.setFillColor(10, 107, 124); // teal #0A6B7C
+      const heroAltFallbackMM = 30;
+      pdf.setFillColor(10, 107, 124);
       pdf.rect(MARGEM_MM, yAtual, larguraDisponivel, heroAltFallbackMM, "F");
       yAtual += heroAltFallbackMM + GAP_MM;
     } finally {
@@ -275,6 +312,7 @@ export async function exportarPDF(
       hero.style.paddingBottom = heroSavedPaddingBottom;
     }
   }
+
   if (grupos.length > 0) {
     await colocarGrupoNaPagina(pdf, grupos[0], larguraDisponivel, GAP_MM, yAtual);
   }
