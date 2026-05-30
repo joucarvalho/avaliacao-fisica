@@ -360,8 +360,9 @@ function RadioCheck({ label, checked, onChange }: { label: string; checked?: boo
 }
 
 // ─── Editable Data Table ──────────────────────────────────────
-function EditableTable({ headers, rows, tableKey, formData, updateField }: {
+function EditableTable({ headers, rows, tableKey, formData, updateField, sanitize }: {
   headers: string[]; rows: string[]; tableKey: string; formData: FormData; updateField: (key: string, val: string) => void;
+  sanitize?: (raw: string) => string;
 }) {
   const colCount = headers.length - 1;
   return (
@@ -386,8 +387,8 @@ function EditableTable({ headers, rows, tableKey, formData, updateField }: {
                   <td key={j} className="py-1 px-1.5 text-center border-b border-border/50">
                     <input
                       type="text"
-                      value={(formData[cellKey] as string) || ""}
-                      onChange={(e) => updateField(cellKey, e.target.value)}
+                      value={sanitize ? sanitize((formData[cellKey] as string) || "") : (formData[cellKey] as string) || ""}
+                      onChange={(e) => updateField(cellKey, sanitize ? sanitize(e.target.value) : e.target.value)}
                       className="w-full h-7 bg-transparent text-center font-mono text-sm text-foreground/70 border-b border-dashed border-foreground/10 focus:border-primary/50 outline-none transition-colors"
                     />
                   </td>
@@ -399,6 +400,20 @@ function EditableTable({ headers, rows, tableKey, formData, updateField }: {
       </table>
     </div>
   );
+}
+
+// ─── Validação de notas do FMS (Seção VIII) ─────────────────
+// Notas válidas: apenas 0, 1, 2 ou 3 (ou vazio). sanitizeScore devolve o
+// último dígito 0-3 digitado; isValidScore filtra a soma contra lixo legado.
+function sanitizeScore(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  for (let k = digits.length - 1; k >= 0; k--) {
+    if ("0123".includes(digits[k])) return digits[k];
+  }
+  return "";
+}
+function isValidScore(v: number): boolean {
+  return v >= 0 && v <= 3;
 }
 
 // ─── Cálculo de IMC ──────────────────────────────────────────
@@ -1360,6 +1375,7 @@ export default function Home() {
               tableKey="mobilidade"
               formData={formData}
               updateField={updateField}
+              sanitize={sanitizeScore}
             />
             {(() => {
               const FMS_ROWS = 7;
@@ -1369,7 +1385,7 @@ export default function Home() {
               for (let j = FMS_COLS - 1; j >= 0; j--) {
                 for (let i = 0; i < FMS_ROWS; i++) {
                   const v = parseFloat((formData[`mobilidade_${i}_${j}`] as string) || "");
-                  if (!isNaN(v)) { activeCol = j; break; }
+                  if (isValidScore(v)) { activeCol = j; break; }
                 }
                 if (activeCol !== -1) break;
               }
@@ -1378,7 +1394,7 @@ export default function Home() {
               let total = 0;
               for (let i = 0; i < FMS_ROWS; i++) {
                 const v = parseFloat((formData[`mobilidade_${i}_${activeCol}`] as string) || "");
-                if (!isNaN(v)) total += v;
+                if (isValidScore(v)) total += v;
               }
 
               const MAX = 21;
