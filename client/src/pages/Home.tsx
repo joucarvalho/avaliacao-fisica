@@ -1022,7 +1022,6 @@ export default function Home() {
             </div>
             <TagInput
               label="Objetivo Principal"
-              wide
               values={(Array.isArray(formData.objetivo) ? formData.objetivo : []) as string[]}
               onChange={(v) => setFormData((prev) => ({ ...prev, objetivo: v }))}
             />
