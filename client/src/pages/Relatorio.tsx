@@ -205,6 +205,26 @@ export default function Relatorio() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
+  // ── Objetivos do aluno (usado para ajustar direção das cores de tendência) ──
+  // goalInvert("peso") → true = queda é boa (emagrecimento/manutenção)
+  //                    → false = queda é ruim (hipertrofia/recomposição)
+  const objetivos: string[] = (() => {
+    const raw = formData.objetivo;
+    if (Array.isArray(raw)) return raw as string[];
+    if (typeof raw === "string" && raw) return [raw];
+    return [];
+  })();
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _goalInvert = (metric: "peso" | "gordura" | "musculo"): boolean => {
+    if (metric === "gordura") return true;
+    if (metric === "musculo") return false;
+    // "peso": depende do objetivo principal
+    if (objetivos.includes("Emagrecimento") || objetivos.includes("Manutenção/Saúde")) return true;
+    if (objetivos.includes("Hipertrofia") || objetivos.includes("Recomposição Corporal")) return false;
+    return false; // sem objetivo definido: queda de peso não é necessariamente boa
+  };
+
   // ── Student info ─────────────────────────────────
   const nome = (formData.header_nome as string) || (formData.nome as string) || "Aluno";
   const idade = formData.idade as string || "";

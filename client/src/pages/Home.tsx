@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "wouter";
 import {
   User, Heart, Ruler, Activity, Move, Dumbbell, FileText,
@@ -75,6 +76,102 @@ function Section({ title, icon, color, children, sectionNumber, defaultOpen = tr
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Objetivos pré-definidos ──────────────────────────────────
+const OBJECTIVES = ["Hipertrofia", "Recomposição Corporal", "Emagrecimento", "Manutenção/Saúde"];
+
+// ─── Tag Input (campo com autocomplete e seleção por tags) ────
+function TagInput({ label, wide = false, values, onChange }: {
+  label: string; wide?: boolean; values: string[]; onChange: (v: string[]) => void;
+}) {
+  const [input, setInput] = useState("");
+  const [open, setOpen] = useState(false);
+  const [dropRect, setDropRect] = useState<{ top: number; left: number; width: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = OBJECTIVES.filter(
+    (o) => !values.includes(o) && o.toLowerCase().includes(input.toLowerCase()),
+  );
+
+  const calcRect = () => {
+    if (containerRef.current) {
+      const r = containerRef.current.getBoundingClientRect();
+      setDropRect({ top: r.bottom, left: r.left, width: r.width });
+    }
+  };
+
+  const add = (tag: string) => {
+    if (!values.includes(tag)) onChange([...values, tag]);
+    setInput("");
+    setOpen(false);
+  };
+
+  const remove = (tag: string) => onChange(values.filter((v) => v !== tag));
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && filtered.length > 0) { e.preventDefault(); add(filtered[0]); }
+    if (e.key === "Backspace" && input === "" && values.length > 0) remove(values[values.length - 1]);
+    if (e.key === "Escape") setOpen(false);
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  // Portal para o dropdown — escapa do overflow:hidden da Section
+  const dropdown = open && filtered.length > 0 && dropRect
+    ? createPortal(
+        <div
+          style={{ position: "fixed", top: dropRect.top + 4, left: dropRect.left, width: dropRect.width, zIndex: 9999 }}
+          className="bg-card border border-border rounded-lg shadow-lg overflow-hidden"
+        >
+          {filtered.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); add(opt); }}
+              className="w-full text-left px-4 py-2.5 font-body text-sm text-foreground/70 hover:bg-teal/5 hover:text-teal transition-colors"
+            >
+              {opt}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <div className={wide ? "col-span-2" : ""} ref={containerRef}>
+      <label className="block text-xs font-display font-semibold text-foreground/50 uppercase tracking-wider mb-1.5">{label}</label>
+      <div className="min-h-9 w-full border-b-2 border-dashed border-foreground/15 focus-within:border-primary/50 transition-colors pb-1">
+        {values.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-1.5">
+            {values.map((tag) => (
+              <span key={tag} className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-display font-semibold bg-teal/10 text-teal border border-teal/20">
+                {tag}
+                <button type="button" onClick={() => remove(tag)} className="hover:text-teal/60 transition-colors leading-none ml-0.5">×</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => { setInput(e.target.value); calcRect(); setOpen(true); }}
+          onFocus={() => { calcRect(); setOpen(true); }}
+          onKeyDown={handleKeyDown}
+          placeholder={values.length === 0 ? "Selecione ou digite..." : ""}
+          className="bg-transparent outline-none font-body text-sm text-foreground/80 placeholder:text-foreground/20 w-full h-7"
+        />
+      </div>
+      {dropdown}
     </div>
   );
 }
@@ -538,7 +635,13 @@ export default function Home() {
   // começa vazio mas já com o treinador padrão.
   const [formData, setFormData] = useState<FormData>(() => {
     const rascunho = carregarRascunho();
-    if (rascunho) return rascunho as FormData;
+    if (rascunho) {
+      // Retrocompatibilidade: objetivo era string em fichas antigas → normaliza para array
+      if (typeof rascunho.objetivo === "string") {
+        rascunho.objetivo = rascunho.objetivo ? [rascunho.objetivo as string] : [];
+      }
+      return rascunho as FormData;
+    }
     return { header_treinador: "Julio Carvalho" };
   });
   const inputImportRef = useRef<HTMLInputElement>(null);
@@ -917,8 +1020,12 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            <Field label="Objetivo Principal" wide value={formData.objetivo as string} onChange={(v) => updateField("objetivo", v)} placeholder="Ex: Hipertrofia, emagrecimento..." />
-            <Field label="Objetivos Secundários" value={formData.objetivos_sec as string} onChange={(v) => updateField("objetivos_sec", v)} />
+            <TagInput
+              label="Objetivo Principal"
+              wide
+              values={(Array.isArray(formData.objetivo) ? formData.objetivo : []) as string[]}
+              onChange={(v) => setFormData((prev) => ({ ...prev, objetivo: v }))}
+            />
           </div>
         </Section>
 
