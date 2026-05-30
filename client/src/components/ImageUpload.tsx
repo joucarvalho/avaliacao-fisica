@@ -174,7 +174,7 @@ export function ImageUpload({
         <img
           src={initialUrl}
           alt={label}
-          className="w-full h-full object-contain rounded-lg border border-teal/20 bg-teal/5"
+          className="w-full h-full object-contain rounded-lg"
         />
         <button
           onClick={onRemove}
