@@ -235,9 +235,6 @@ export default function Relatorio() {
 
   // ── Antropometria ────────────────────────────────
   const peso = getPesoAtual(formData as Record<string, unknown>);
-  const altura = formData.altura as string || "";
-  const imc = formData.imc as string || "";
-  const rcq = formData.rcq as string || "";
 
   // ── Bioimpedância ────────────────────────────────
   const bioRows = ["Peso Total (kg)", "Água Corporal (kg)", "Massa Proteica (kg)", "Minerais (kg)", "Massa M. Esquelética (kg)", "Massa Gorda (kg)", "Gordura Visceral (nível)", "Percentual de Gordura (%)", "%GC Sub-cutânea (%)", "Taxa Metabólica Basal (kcal)", "Idade Metabólica"];
@@ -324,11 +321,6 @@ export default function Relatorio() {
   const hasForcaData = forcaRows.some((_, i) => getValues(formData, "forca", i, 6).some((v) => v !== null));
   const hasCardioData = !!(vo2Resultado || cardioVO2Vals.some((v) => v !== null));
   const hasFotos = fotos.length > 0;
-
-  // ── IMC classification ───────────────────────────
-  const imcNum = parseFloat(imc);
-  const imcClass = !imcNum ? "" : imcNum < 18.5 ? "Abaixo do peso" : imcNum < 25 ? "Peso normal" : imcNum < 30 ? "Sobrepeso" : "Obesidade";
-  const imcColor = !imcNum ? "" : imcNum < 18.5 ? "text-blue-500" : imcNum < 25 ? "text-emerald-600" : imcNum < 30 ? "text-amber-500" : "text-red-500";
 
   // Protocol display names
   const protocolNames: Record<string, string> = { JP7: "Jackson & Pollock 7 dobras", Guedes: "Guedes (1985)", Petroski: "Petroski (1995)" };
@@ -428,26 +420,6 @@ export default function Relatorio() {
             {/* ══════════════════════════════════════════════
                 2. ANTROPOMETRIA — Dados físicos básicos
                ══════════════════════════════════════════════ */}
-            {(peso || altura || imc || rcq) && (
-              <ReportSection title="Dados Antropométricos" icon={<Ruler size={17} />} accent="teal">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: "Altura", value: altura, unit: "cm" },
-                    { label: "Peso", value: peso, unit: "kg" },
-                    { label: "IMC", value: imc, unit: imcClass, extra: imcColor },
-                    { label: "Relação Cintura/Quadril", value: rcq, unit: "" },
-                  ].map((item) => (
-                    <div key={item.label} className="text-center p-3 bg-muted/30 rounded-lg">
-                      <p className="text-[10px] font-mono uppercase tracking-wider text-foreground/40 mb-1">{item.label}</p>
-                      <p className={`font-mono text-xl font-bold ${item.extra || "text-foreground/80"}`}>{item.value || "—"}</p>
-                      {item.value && item.unit && <p className="text-[10px] font-mono text-foreground/35 mt-0.5">{item.unit}</p>}
-                    </div>
-                  ))}
-                </div>
-              </ReportSection>
-            )}
-
-            <div className="print-break" />
 
             {/* ══════════════════════════════════════════════
                 3. COMPOSIÇÃO CORPORAL — Bioimpedância + Gráfico
