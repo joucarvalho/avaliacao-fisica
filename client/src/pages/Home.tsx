@@ -1665,63 +1665,45 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* Barra de classificação VO₂max */}
+                    {/* Barra de classificação VO₂max — clean fill */}
                     <div className="mb-5 px-1">
-                      {/* trilho da barra */}
-                      <div className="relative h-4 rounded-full overflow-hidden flex">
-                        {/* faixa vermelha */}
-                        <div style={{ width: `${lowPct}%`, background: "#DC2626" }} />
-                        {/* faixa amarela */}
-                        <div style={{ width: `${highPct - lowPct}%`, background: "#D97706" }} />
-                        {/* faixa verde */}
-                        <div style={{ flex: 1, background: "#16A34A" }} />
-                      </div>
-
-                      {/* marcador (triângulo + linha) */}
-                      <div className="relative h-4 mt-0.5" style={{ pointerEvents: "none" }}>
+                      {/* trilho + preenchimento */}
+                      <div className="relative h-1.5 rounded-full bg-foreground/10 overflow-hidden">
                         <div
-                          className="absolute -translate-x-1/2 flex flex-col items-center"
-                          style={{ left: `${cls.percent}%` }}
-                        >
-                          {/* triângulo apontando para cima */}
-                          <div
-                            style={{
-                              width: 0, height: 0,
-                              borderLeft: "6px solid transparent",
-                              borderRight: "6px solid transparent",
-                              borderBottom: `8px solid ${cls.color}`,
-                            }}
-                          />
-                        </div>
+                          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                          style={{ width: `${cls.percent}%`, background: cls.color }}
+                        />
                       </div>
 
-                      {/* rótulos dos limites + classificação */}
-                      <div className="flex items-center justify-between mt-1.5 px-0.5">
-                        <span className="text-[9px] font-mono text-foreground/30">{scaleMin} ml/kg/min</span>
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="text-[11px] font-display font-bold uppercase tracking-wide"
-                            style={{ color: cls.color }}
-                          >
-                            {cls.label}
-                          </span>
-                          <span className="text-[9px] font-body text-foreground/40">— {cls.sublabel}</span>
-                        </div>
-                        <span className="text-[9px] font-mono text-foreground/30">{scaleMax} ml/kg/min</span>
-                      </div>
-
-                      {/* legenda das faixas */}
-                      <div className="flex gap-3 mt-2 justify-center">
+                      {/* marcadores de zona (lowPct e highPct) */}
+                      <div className="relative h-4 mt-0.5">
                         {[
-                          { cor: "#DC2626", texto: `Fraco (< ${low})` },
-                          { cor: "#D97706", texto: `Regular (${low}–${high})` },
-                          { cor: "#16A34A", texto: `Bom / Excelente (≥ ${high})` },
-                        ].map((item) => (
-                          <div key={item.texto} className="flex items-center gap-1">
-                            <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ background: item.cor }} />
-                            <span className="text-[9px] font-mono text-foreground/40">{item.texto}</span>
+                          { pct: lowPct, val: low },
+                          { pct: highPct, val: high },
+                        ].map(({ pct, val }) => (
+                          <div
+                            key={val}
+                            className="absolute flex flex-col items-center -translate-x-1/2"
+                            style={{ left: `${pct}%` }}
+                          >
+                            <div className="w-px h-2 bg-foreground/20" />
+                            <span className="text-[8px] font-mono text-foreground/30 mt-0.5">{val}</span>
                           </div>
                         ))}
+                        {/* escala min/max */}
+                        <span className="absolute left-0 text-[8px] font-mono text-foreground/25 top-2">{scaleMin}</span>
+                        <span className="absolute right-0 text-[8px] font-mono text-foreground/25 top-2">{scaleMax}</span>
+                      </div>
+
+                      {/* classificação */}
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span
+                          className="text-[11px] font-display font-bold uppercase tracking-wide"
+                          style={{ color: cls.color }}
+                        >
+                          {cls.label}
+                        </span>
+                        <span className="text-[9px] font-body text-foreground/40">— {cls.sublabel}</span>
                       </div>
                     </div>
                   </>
