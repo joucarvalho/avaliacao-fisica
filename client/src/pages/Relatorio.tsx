@@ -237,15 +237,20 @@ export default function Relatorio() {
   const peso = getPesoAtual(formData as Record<string, unknown>);
 
   // ── Bioimpedância ────────────────────────────────
-  const bioRows = ["Peso Total (kg)", "Água Corporal (kg)", "Massa Proteica (kg)", "Minerais (kg)", "Massa M. Esquelética (kg)", "Massa Gorda (kg)", "Gordura Visceral (nível)", "Percentual de Gordura (%)", "%GC Sub-cutânea (%)", "Taxa Metabólica Basal (kcal)", "Idade Metabólica"];
+  const bioRows = ["Peso Total (kg)", "Água Corporal (kg)", "Massa Proteica (kg)", "Minerais (kg)", "Massa Muscular Esquelética (kg)", "Massa Gorda (kg)", "Gordura Visceral (nível)", "Percentual de Gordura (%)", "%GC Sub-cutânea (%)", "Taxa Metabólica Basal (kcal)", "Idade Metabólica"];
   const bioChartData = useMemo(() => buildChart(formData, "bioimpedancia", bioRows, 6), [formData]);
 
   const pesoVals = getValues(formData, "bioimpedancia", 0, 6);
+  const aguaVals = getValues(formData, "bioimpedancia", 1, 6);
+  const proteinaVals = getValues(formData, "bioimpedancia", 2, 6);
+  const mineraisVals = getValues(formData, "bioimpedancia", 3, 6);
   const musculoVals = getValues(formData, "bioimpedancia", 4, 6);
   const massaGordaVals = getValues(formData, "bioimpedancia", 5, 6);
   const visceralVals = getValues(formData, "bioimpedancia", 6, 6);
   const gorduraVals = getValues(formData, "bioimpedancia", 7, 6);
+  const gcSubVals = getValues(formData, "bioimpedancia", 8, 6);
   const tmbVals = getValues(formData, "bioimpedancia", 9, 6);
+  const idadeMetVals = getValues(formData, "bioimpedancia", 10, 6);
 
   // ── Dobras Cutâneas ──────────────────────────────
   const protocoloDC = formData.dc_protocolo as string || "";
@@ -255,7 +260,7 @@ export default function Relatorio() {
   const dcSomatorioVals = getValues(formData, "dobras", 9, 6);
 
   // ── Perímetros ───────────────────────────────────
-  const perimRows = ["Braço D", "Braço E", "Antebraço D", "Antebraço E", "Tórax", "Abdômen", "Cintura", "Quadril", "Coxa D", "Coxa E", "Panturrilha D", "Panturrilha E"];
+  const perimRows = ["Ombro", "Braço D", "Braço E", "Braço C", "Tórax", "Cintura", "Abdômen", "Quadril", "Coxa D", "Coxa E", "Panturrilha D", "Panturrilha E"];
   const perimChartData = useMemo(() => buildChart(formData, "perimetros", perimRows, 6), [formData]);
 
   // ── Força ────────────────────────────────────────
@@ -456,11 +461,16 @@ export default function Relatorio() {
                       </thead>
                       <tbody>
                         <CompareRow label="Peso Total" values={pesoVals} unit="kg" />
-                        <CompareRow label="Massa Muscular" values={musculoVals} unit="kg" />
+                        <CompareRow label="Água Corporal" values={aguaVals} unit="kg" />
+                        <CompareRow label="Massa Proteica" values={proteinaVals} unit="kg" />
+                        <CompareRow label="Minerais" values={mineraisVals} unit="kg" />
+                        <CompareRow label="Massa Muscular Esquelética" values={musculoVals} unit="kg" />
                         <CompareRow label="Massa Gorda" values={massaGordaVals} unit="kg" invert />
-                        <CompareRow label="% Gordura" values={gorduraVals} unit="%" invert />
-                        <CompareRow label="Taxa Metabólica Basal" values={tmbVals} unit="kcal" />
                         <CompareRow label="Gordura Visceral" values={visceralVals} invert />
+                        <CompareRow label="% Gordura Corporal" values={gorduraVals} unit="%" invert />
+                        <CompareRow label="%GC Sub-cutânea" values={gcSubVals} unit="%" invert />
+                        <CompareRow label="Taxa Metabólica Basal" values={tmbVals} unit="kcal" />
+                        <CompareRow label="Idade Metabólica" values={idadeMetVals} />
                       </tbody>
                     </table>
                   </div>
