@@ -1649,24 +1649,26 @@ export default function Home() {
 
                 return (
                   <>
-                    <div className="mb-3 p-4 bg-orange/10 rounded-lg border border-orange/20 flex items-center gap-4">
-                      <div>
+                    {/* Resultado + barra na mesma linha */}
+                    <div className="flex gap-6 items-center mb-5">
+
+                      {/* coluna esquerda: valor */}
+                      <div className="shrink-0 p-3 bg-orange/10 rounded-lg border border-orange/20">
                         <label className="block text-[10px] font-mono uppercase tracking-wider text-orange/60 mb-0.5">VO₂ Max Estimado</label>
                         <span className="font-mono text-2xl font-bold text-orange">{formData.vo2_resultado as string}</span>
-                        <span className="ml-1.5 text-xs font-mono text-orange/50">ml/kg/min</span>
+                        <span className="ml-1 text-xs font-mono text-orange/50">ml/kg/min</span>
+                        {formData.vo2_formula === "cooper" && formData.cooper_fc_max && formData.fc_max_estimada && (
+                          <div className="mt-1.5 pt-1.5 border-t border-orange/20">
+                            <label className="block text-[10px] font-mono uppercase tracking-wider text-orange/60 mb-0.5">% FC Máx</label>
+                            <span className="font-mono text-base font-semibold text-orange/80">
+                              {Math.round((parseFloat(formData.cooper_fc_max as string) / parseFloat(formData.fc_max_estimada as string)) * 100)}%
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      {formData.vo2_formula === "cooper" && formData.cooper_fc_max && formData.fc_max_estimada && (
-                        <div className="border-l border-orange/20 pl-4">
-                          <label className="block text-[10px] font-mono uppercase tracking-wider text-orange/60 mb-0.5">% FC Máx Atingida</label>
-                          <span className="font-mono text-lg font-semibold text-orange/80">
-                            {Math.round((parseFloat(formData.cooper_fc_max as string) / parseFloat(formData.fc_max_estimada as string)) * 100)}%
-                          </span>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* Barra de classificação VO₂max — clean fill */}
-                    <div className="mb-5 px-1">
+                      {/* coluna direita: barra */}
+                      <div className="flex-1">
                       {/* trilho + preenchimento */}
                       <div className="relative h-1.5 rounded-full bg-foreground/10 overflow-hidden">
                         <div
@@ -1705,7 +1707,8 @@ export default function Home() {
                         </span>
                         <span className="text-[9px] font-body text-foreground/40">— {cls.sublabel}</span>
                       </div>
-                    </div>
+                    </div>{/* fim coluna direita */}
+                    </div>{/* fim flex row */}
                   </>
                 );
               })()}
