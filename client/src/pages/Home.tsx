@@ -1400,40 +1400,53 @@ export default function Home() {
               const CUTOFF = 15;
               const passed = total >= CUTOFF;
               const pct = Math.min((total / MAX) * 100, 100);
-              const barColor = passed ? "bg-green-500" : "bg-red-500";
               const textColor = passed ? "text-green-600" : "text-red-500";
               const label = passed ? "Dentro da normalidade" : "Abaixo do corte";
               const evalLabel = dateHeaders.slice(1)[activeCol];
 
+              const fmsAccent = passed ? { bg: "bg-green-500/10", border: "border-green-500/20", label: "text-green-600/60" } : { bg: "bg-red-500/10", border: "border-red-500/20", label: "text-red-500/60" };
+              const fmsBarColor = passed ? "#22c55e" : "#ef4444";
               return (
-                <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono uppercase tracking-wider text-foreground/50">
-                      Pontuação FMS — {evalLabel}
-                    </span>
-                    <span className={`text-xs font-semibold font-mono uppercase tracking-wider ${textColor}`}>
-                      {label}
-                    </span>
-                  </div>
-                  <div className="flex items-end gap-3">
-                    <span className={`text-3xl font-display font-bold tabular-nums ${textColor}`}>{total}</span>
-                    <span className="text-sm font-mono text-foreground/40 mb-1">/ {MAX}</span>
-                    <span className="text-xs font-body text-foreground/35 mb-1 ml-auto">corte ≥ {CUTOFF}</span>
-                  </div>
-                  <div className="w-full h-2.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${barColor}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] font-mono text-foreground/30">
-                    <span>0</span>
-                    <span className="relative">
-                      <span className="absolute -translate-x-1/2" style={{ left: `${(CUTOFF / MAX) * 100}%` }}>
-                        {CUTOFF}
-                      </span>
-                    </span>
-                    <span>{MAX}</span>
+                <div className="rounded-lg border border-border bg-muted/30 p-4">
+                  <div className="flex gap-6 items-center">
+                    {/* card esquerdo: score */}
+                    <div className={`shrink-0 p-3 rounded-lg border ${fmsAccent.bg} ${fmsAccent.border}`}>
+                      <label className={`block text-[10px] font-mono uppercase tracking-wider mb-0.5 ${fmsAccent.label}`}>
+                        Pontuação FMS
+                      </label>
+                      <div className="flex items-baseline gap-1">
+                        <span className={`font-mono text-2xl font-bold ${textColor}`}>{total}</span>
+                        <span className="text-xs font-mono text-foreground/40">/ {MAX}</span>
+                      </div>
+                    </div>
+
+                    {/* coluna direita: barra + meta */}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-foreground/50">{evalLabel}</span>
+                        <span className={`text-[11px] font-display font-bold uppercase tracking-wide ${textColor}`}>{label}</span>
+                      </div>
+                      {/* trilho fino */}
+                      <div className="relative h-1.5 rounded-full bg-foreground/10 overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%`, background: fmsBarColor }}
+                        />
+                      </div>
+                      {/* marcadores */}
+                      <div className="relative h-4 mt-0.5">
+                        <div
+                          className="absolute flex flex-col items-center -translate-x-1/2"
+                          style={{ left: `${(CUTOFF / MAX) * 100}%` }}
+                        >
+                          <div className="w-px h-2 bg-foreground/20" />
+                          <span className="text-[8px] font-mono text-foreground/30 mt-0.5">{CUTOFF}</span>
+                        </div>
+                        <span className="absolute left-0 text-[8px] font-mono text-foreground/25 top-2">0</span>
+                        <span className="absolute right-0 text-[8px] font-mono text-foreground/25 top-2">{MAX}</span>
+                      </div>
+                      <span className="text-[9px] font-body text-foreground/35 mt-1 block">corte ≥ {CUTOFF}</span>
+                    </div>
                   </div>
                 </div>
               );
