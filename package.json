@@ -11,6 +11,9 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
+    "@fontsource/dm-sans": "^5.2.8",
+    "@fontsource/ibm-plex-mono": "^5.2.7",
+    "@fontsource/source-sans-3": "^5.2.9",
     "clsx": "^2.1.1",
     "heic2any": "^0.0.4",
     "html2canvas-pro": "^2.0.4",
